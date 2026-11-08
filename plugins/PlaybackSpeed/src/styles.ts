@@ -269,6 +269,50 @@ export const SPEED_CSS = `
 	padding-top: 10px;
 	border-top: 1px solid rgba(255, 255, 255, 0.09);
 }
+.lunaspeed-warning {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-top: 12px;
+	padding: 10px 12px;
+	border-radius: 10px;
+	border: 1px solid rgba(255, 178, 92, 0.35);
+	background: rgba(255, 178, 92, 0.1);
+}
+.lunaspeed-warning[hidden] {
+	display: none;
+}
+.lunaspeed-warning-title {
+	font-size: 12px;
+	font-weight: 650;
+	color: #ffc477;
+}
+.lunaspeed-warning-text {
+	font-size: 11px;
+	line-height: 1.45;
+	color: #c9b39c;
+}
+.lunaspeed-warning-action {
+	align-self: flex-start;
+	margin: 4px 0 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: #ffc477;
+	font-family: inherit;
+	font-size: 11px;
+	font-weight: 600;
+	cursor: pointer;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+.lunaspeed-warning-action:hover {
+	color: #ffd9a8;
+}
+.lunaspeed-warning-action:disabled {
+	color: #8a7a68;
+	cursor: default;
+}
 .lunaspeed-version {
 	font-size: 10px;
 	color: #4d4d57;

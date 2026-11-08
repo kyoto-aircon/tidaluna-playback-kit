@@ -2,6 +2,7 @@ import type { LunaUnload } from "@luna/core";
 import { StyleTag } from "@luna/lib";
 
 import { copyReport, debugLog, PLUGIN_VERSION } from "./debug";
+import type { PlayerKind } from "./playerKind";
 import { formatSpeed, positionToSpeed, speedLabel, speedToPosition, tickValues } from "./speed";
 import type { SpeedStore } from "./state";
 import { SPEED_CSS } from "./styles";
@@ -17,7 +18,13 @@ const clampNumber = (value: number, min: number, max: number): number => Math.mi
 
 const findButtonHost = (): HTMLElement | null => document.querySelector<HTMLElement>('[data-test="footer-player"] [class*="utilityButtons"]');
 
-export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore): void => {
+export interface SpeedControlOptions {
+	getPlayerKind?: () => PlayerKind;
+	subscribePlayerKind?: (listener: (kind: PlayerKind) => void) => () => void;
+	useBrowserPlayer?: () => void;
+}
+
+export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, options: SpeedControlOptions = {}): void => {
 	new StyleTag("lunaspeed-styles", unloads, SPEED_CSS);
 
 	const control = document.createElement("div");
@@ -65,6 +72,11 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore): 
 			<span class="lunaspeed-switch-label">Pitch follows speed</span>
 			<button class="lunaspeed-switch" type="button" role="switch" aria-checked="false" aria-label="Pitch follows speed"></button>
 		</div>
+		<div class="lunaspeed-warning" hidden>
+			<span class="lunaspeed-warning-title">Native (lossless) player</span>
+			<span class="lunaspeed-warning-text">TIDAL ignores playback speed here. Speed needs the browser player.</span>
+			<button class="lunaspeed-warning-action" type="button">Use browser player</button>
+		</div>
 		<div class="lunaspeed-foot">
 			<span class="lunaspeed-version">v${PLUGIN_VERSION}</span>
 			<button class="lunaspeed-copy" type="button">Copy diagnostics</button>
@@ -76,6 +88,8 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore): 
 	const pitchSwitch = popover.querySelector<HTMLButtonElement>(".lunaspeed-switch") as HTMLButtonElement;
 	const resetButton = popover.querySelector<HTMLButtonElement>(".lunaspeed-reset") as HTMLButtonElement;
 	const copyButton = popover.querySelector<HTMLButtonElement>(".lunaspeed-copy") as HTMLButtonElement;
+	const warning = popover.querySelector<HTMLElement>(".lunaspeed-warning") as HTMLElement;
+	const warningAction = popover.querySelector<HTMLButtonElement>(".lunaspeed-warning-action") as HTMLButtonElement;
 
 	let ticksKey = "";
 	let isOpen = false;
@@ -227,6 +241,28 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore): 
 		}, 1800);
 	});
 
+	const renderWarning = (kind: PlayerKind): void => {
+		warning.hidden = kind !== "native";
+	};
+
+	let switchTimer: ReturnType<typeof setTimeout> | undefined;
+	warningAction.addEventListener("click", () => {
+		if (options.useBrowserPlayer === undefined) return;
+		if (switchTimer !== undefined) clearTimeout(switchTimer);
+		warningAction.disabled = true;
+		warningAction.textContent = "Switching\u2026";
+		options.useBrowserPlayer();
+		debugLog("info", "requested browser player from warning");
+		switchTimer = setTimeout(() => {
+			warningAction.disabled = false;
+			warningAction.textContent = "Use browser player";
+		}, 2500);
+	});
+
+	renderWarning(options.getPlayerKind?.() ?? "unknown");
+	const unsubscribeKind = options.subscribePlayerKind?.(renderWarning);
+	if (unsubscribeKind !== undefined) unloads.add(unsubscribeKind);
+
 	ensureMounted();
 	render();
 
@@ -238,6 +274,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore): 
 	unloads.add(() => {
 		clearInterval(mountTimer);
 		if (copyResetTimer !== undefined) clearTimeout(copyResetTimer);
+		if (switchTimer !== undefined) clearTimeout(switchTimer);
 		close();
 		popover.remove();
 		control.remove();

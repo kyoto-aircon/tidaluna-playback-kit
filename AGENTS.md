@@ -22,3 +22,10 @@ Single-plugin TidaLuna repo. Build with `luna/buildPlugins`; one plugin lives in
 - `debug.ts` keeps a 500-entry ring buffer and mirrors to console with the `[PlaybackSpeed]` prefix.
 - `window.__playbackSpeed` exposes `logs()`, `logText()`, `report()`, `copy()`, `selectors()`, `store`.
 - The popover and the settings tab both have a "Copy diagnostics" action; reports include a 1.5 s currentTime progression probe and the TIDAL `activePlayer` probe. Use those first when a speed change doesn't reach the audio.
+
+## Native player
+
+- Desktop LOSSLESS/HI_RES plays through `nativePlayer` (`window.NativePlayerComponent`), which has no HTMLMediaElement and no rate API — element `playbackRate` is ignored there.
+- `nativePlayer.ts` patches the component prototype to capture the instance and, if a `setPlaybackRate`-like member appears, drives it.
+- `nativePlayer.ts` also exposes `useBrowserPlayer` via index (dispatch `settings/SET_STREAMING_QUALITY` → `HIGH`), which moves playback to shaka where rate works.
+- Player kind is polled every 1.5 s; the popover shows a warning while `native`.

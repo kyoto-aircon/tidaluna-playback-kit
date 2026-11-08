@@ -28,7 +28,7 @@ A small pill sits beside the volume control, shows the live rate, and opens a lo
 ## Caveats
 
 - Chromium's audio renderer clamps effective playback to **0.0625× – 16×**. Speeds below `0.0625×` are still selectable but play at that floor.
-- TIDAL plays through hidden `<video>` elements driven by Shaka. The plugin sets `playbackRate` on those elements and re-asserts it when TIDAL resets them on track load. If TIDAL falls back to its native/exclusive player, that player may ignore the element rate.
+- TIDAL has two playback paths. The **shaka / browser player** uses hidden `<video>` elements (`#video-one`, `#video-two`), where the plugin sets `playbackRate` and `preservesPitch` and re-asserts them on track load. The **native player** — used for LOSSLESS / HI_RES on desktop — is a native audio backend with no media element and no rate API, so speed cannot be applied there. The popover detects this and shows a warning with **Use browser player**, which sets TIDAL streaming quality to High (320 kbps AAC) so playback moves to the shaka player and speed works again.
 - With TIDAL's audio spectrum visualiser enabled, audio can be routed through Web Audio, which may bypass pitch preservation.
 
 ## Troubleshooting / diagnostics
@@ -60,6 +60,7 @@ For a local dev loop, add `http://127.0.0.1:3000` as a store URL in Luna and ena
 - `src/speed.ts` — pure speed maths: snapping, clamping, log-scale mapping, tick values.
 - `src/state.ts` — persisted store (`localStorage`, key `tidaluna.playback-speed.v1`).
 - `src/mediaController.ts` — attaches to `#tidal-player-root video` (TIDAL's `video-one` / `video-two`) and keeps `playbackRate` + `preservesPitch` applied.
+- `src/playerKind.ts` / `src/nativePlayer.ts` — detect native vs shaka vs browser player, probe the native component and drive a native rate method if one ever appears.
 - `src/control.ts` — pill, steppers and popover; mounts into `[data-test="footer-player"] [class*="utilityButtons"]`.
 - `src/Settings.tsx` — Luna settings tab.
 

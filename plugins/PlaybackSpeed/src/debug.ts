@@ -1,4 +1,4 @@
-export const PLUGIN_VERSION = "1.1.0";
+export const PLUGIN_VERSION = "1.2.0";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -130,6 +130,21 @@ export const registerTidalProbe = (probe: () => unknown): void => {
 	tidalProbe = probe;
 };
 
+let reportExtras: (() => Record<string, unknown>) | undefined;
+
+/** Set by index.ts to add player kind / native component details to reports. */
+export const registerReportExtras = (extras: () => Record<string, unknown>): void => {
+	reportExtras = extras;
+};
+
+export const getReportExtras = (): Record<string, unknown> => {
+	try {
+		return reportExtras?.() ?? {};
+	} catch (err) {
+		return { error: String(err) };
+	}
+};
+
 export const probeTidal = (): unknown => {
 	try {
 		return tidalProbe?.() ?? { registered: false };
@@ -149,6 +164,7 @@ export const buildReport = async (settings: unknown): Promise<string> => {
 		`visibility: ${typeof document === "undefined" ? "?" : document.visibilityState}`,
 		`settings: ${JSON.stringify(safeData(settings))}`,
 		`selectors: ${JSON.stringify(snapshotSelectors())}`,
+		`player: ${JSON.stringify(getReportExtras())}`,
 		`tidal: ${JSON.stringify(probeTidal())}`,
 		`progression: ${JSON.stringify(progression)}`,
 		`media: ${JSON.stringify(snapshotMedia())}`,
