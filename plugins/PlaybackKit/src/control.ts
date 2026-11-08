@@ -124,7 +124,6 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 			<span class="lunaspeed-switch-label">Pitch follows speed</span>
 			<button class="lunaspeed-switch" type="button" role="switch" aria-checked="false" aria-label="Pitch follows speed"></button>
 		</div>
-		<div class="lunaspeed-lock" hidden></div>
 		<div class="lunaspeed-warning" hidden>
 			<span class="lunaspeed-warning-title">Native (lossless) player</span>
 			<span class="lunaspeed-warning-text">TIDAL ignores speed and pitch here. They need the browser player.</span>
@@ -156,7 +155,6 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 	const resetButton = popover.querySelector<HTMLButtonElement>(".lunaspeed-reset") as HTMLButtonElement;
 	const copyButton = popover.querySelector<HTMLButtonElement>(".lunaspeed-copy") as HTMLButtonElement;
 	const settingsButton = popover.querySelector<HTMLButtonElement>(".lunaspeed-settings") as HTMLButtonElement;
-	const lockNote = popover.querySelector<HTMLElement>(".lunaspeed-lock") as HTMLElement;
 	const pitchDot = popover.querySelector<HTMLElement>(".lunaspeed-pitch-dot") as HTMLElement;
 	const warning = popover.querySelector<HTMLElement>(".lunaspeed-warning") as HTMLElement;
 	const warningAction = popover.querySelector<HTMLButtonElement>(".lunaspeed-warning-action") as HTMLButtonElement;
@@ -310,9 +308,6 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		resetButton.disabled = locked;
 		renderPitch(pitchSemitones, pitchShifts, locked);
 		renderEngine(pitchSemitones);
-
-		lockNote.hidden = !locked;
-		if (locked) lockNote.textContent = `${presetName(presetId)} preset active — choose Custom to edit.`;
 
 		if (isOpen) positionPopover();
 	};

@@ -530,15 +530,6 @@ export const SPEED_CSS = `
 	color: var(--lunaspeed-fg);
 	font-variant-numeric: tabular-nums;
 }
-.lunaspeed-lock {
-	margin-top: 10px;
-	font-size: 0.786rem;
-	line-height: 1.4;
-	color: var(--lunaspeed-muted);
-}
-.lunaspeed-lock[hidden] {
-	display: none;
-}
 .lunaspeed-slider[data-locked="true"] {
 	opacity: 0.45;
 }
