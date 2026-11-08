@@ -1,0 +1,4 @@
+{
+	"extends": "luna/tsconfig.json",
+	"include": ["plugins/**/*.ts", "plugins/**/*.tsx", "test/**/*.ts"]
+}

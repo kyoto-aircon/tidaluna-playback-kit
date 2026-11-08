@@ -1,0 +1,12 @@
+{
+	"name": "@kyoto-aircon/playback-speed",
+	"description": "YouTube-style playback speed for TIDAL: a pill beside the volume control, a slider, 0.05 snaps and an optional pitch shift.",
+	"homepage": "https://github.com/kyoto-aircon/tidaluna-playback-speed",
+	"author": {
+		"name": "kyoto-aircon",
+		"url": "https://github.com/kyoto-aircon",
+		"avatarUrl": "https://avatars.githubusercontent.com/u/188507291?v=4"
+	},
+	"main": "./src/index.ts",
+	"type": "module"
+}

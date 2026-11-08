@@ -1,0 +1,33 @@
+{
+	"name": "@kyoto-aircon/tidaluna-playback-speed",
+	"version": "1.0.0",
+	"description": "Playback speed control for TIDAL Luna — a speed pill beside the volume control with a slider, 0.05 snaps and pitch control.",
+	"author": {
+		"name": "kyoto-aircon",
+		"url": "https://github.com/kyoto-aircon"
+	},
+	"homepage": "https://github.com/kyoto-aircon/tidaluna-playback-speed",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/kyoto-aircon/tidaluna-playback-speed.git"
+	},
+	"license": "MIT",
+	"type": "module",
+	"scripts": {
+		"build": "rimraf ./dist && tsx esbuild.config.ts",
+		"watch": "tsx esbuild.config.ts --watch",
+		"serve": "http-server ./dist -p 3000 -s --cors -c-1",
+		"test": "tsx --test test/*.test.ts",
+		"release": "node scripts/release.mjs"
+	},
+	"devDependencies": {
+		"@types/node": "^24.5.2",
+		"@types/react": "^19.2.0",
+		"@types/react-dom": "^19.2.0",
+		"http-server": "^14.1.1",
+		"luna": "github:Inrixia/TidaLuna#19b83373cacd55caddaa656e2481283d4ce06fd1",
+		"rimraf": "^6.0.1",
+		"tsx": "^4.20.4",
+		"typescript": "^5.9.2"
+	}
+}
