@@ -78,9 +78,9 @@ export const speedToPosition = (value: number, bounds: Partial<SpeedBounds> | un
 
 /** Map a 0..1 slider position back to a snapped speed. */
 export const positionToSpeed = (position: number, bounds: Partial<SpeedBounds> | undefined): number => {
-	const { min, max } = normalizeBounds(bounds);
-	const raw = min * Math.pow(max / min, clamp(position, 0, 1));
-	return clampSpeed(raw, { min, max });
+	const normalized = normalizeBounds(bounds);
+	const raw = normalized.min * Math.pow(normalized.max / normalized.min, clamp(position, 0, 1));
+	return clampSpeed(raw, normalized);
 };
 
 /** Ticks for the scale rule: the ends plus the usual landmarks, deduped and spaced. */

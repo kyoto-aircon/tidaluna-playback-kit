@@ -93,6 +93,17 @@ describe("log scale", () => {
 		assert.ok(position > 0.5 && position < 0.6, String(position));
 	});
 
+	it("honours the configured step on the slider", () => {
+		const bounds = { min: 0.05, max: 10, step: 0.25 };
+		for (const position of [0.1, 0.35, 0.62, 0.9]) {
+			const speed = positionToSpeed(position, bounds);
+			const steps = (speed - bounds.min) / bounds.step;
+			assert.ok(Math.abs(steps - Math.round(steps)) < 1e-6, `${position} -> ${speed} is not on a 0.25 step`);
+		}
+		assert.equal(positionToSpeed(0, bounds), 0.05);
+		assert.equal(positionToSpeed(1, bounds), 10);
+	});
+
 	it("clamps positions outside 0..1", () => {
 		assert.equal(positionToSpeed(-1, DEFAULT_BOUNDS), 0.05);
 		assert.equal(positionToSpeed(2, DEFAULT_BOUNDS), 10);

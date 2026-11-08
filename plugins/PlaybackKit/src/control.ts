@@ -432,8 +432,10 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 	range.addEventListener("input", () => {
 		if (range.disabled) return;
 		const position = Number(range.value) / SLIDER_RESOLUTION;
-		setSliderVisual(position);
-		store.setSpeed(positionToSpeed(position, store.get().bounds));
+		const bounds = store.get().bounds;
+		const speed = positionToSpeed(position, bounds);
+		setSliderVisual(speedToPosition(speed, bounds));
+		store.setSpeed(speed);
 	});
 
 	popover.addEventListener("keydown", (event) => {
