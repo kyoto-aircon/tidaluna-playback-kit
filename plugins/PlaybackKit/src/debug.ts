@@ -1,4 +1,4 @@
-export const PLUGIN_VERSION = "2.1.5";
+export const PLUGIN_VERSION = "2.2.0";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -153,6 +153,66 @@ export const probeTidal = (): unknown => {
 	}
 };
 
+const THEME_TOKENS = [
+	"--wave-color-solid-accent-fill",
+	"--wave-color-solid-accent-bright",
+	"--wave-color-solid-base-fill",
+	"--wave-color-solid-base-brighter",
+	"--wave-color-solid-base-brightest",
+	"--wave-color-solid-contrast-fill",
+	"--wave-color-solid-contrast-dark",
+	"--wave-color-opacity-contrast-fill-ultra-thin",
+	"--wave-color-opacity-contrast-fill-thin",
+	"--wave-color-opacity-contrast-fill-thick",
+	"--wave-color-solid-warning-fill",
+	"--wave-color-text-danger",
+	"--market-core-text-10-color",
+	"--market-core-text-20-color",
+	"--market-core-fill-white-color",
+	"--baseFontSize",
+	"--baseLineHeight",
+	"--remRatio",
+];
+
+/** Resolved design tokens and player-bar metrics, so theme mismatches can be diagnosed. */
+export const collectThemeSnapshot = (): unknown => {
+	if (typeof document === "undefined") return {};
+	const reference = document.getElementById("wimp") ?? document.querySelector<HTMLElement>('[data-test="footer-player"]') ?? document.documentElement;
+	const computed = getComputedStyle(reference);
+	const tokens: Record<string, string> = {};
+	for (const name of THEME_TOKENS) {
+		const value = computed.getPropertyValue(name).trim();
+		if (value !== "") tokens[name] = value;
+	}
+	const describe = (selector: string) => {
+		const element = document.querySelector<HTMLElement>(selector);
+		if (element === null) return null;
+		const style = getComputedStyle(element);
+		return {
+			color: style.color,
+			background: style.backgroundColor,
+			fontFamily: style.fontFamily,
+			fontSize: style.fontSize,
+			lineHeight: style.lineHeight,
+			borderRadius: style.borderRadius,
+			height: style.height,
+		};
+	};
+	return {
+		root: reference.id !== "" ? `#${reference.id}` : reference.tagName.toLowerCase(),
+		fontSize: computed.fontSize,
+		fontFamily: computed.fontFamily,
+		tokens,
+		elements: {
+			footer: describe('[data-test="footer-player"]'),
+			utilityButtons: describe('[data-test="footer-player"] [class*="utilityButtons"]'),
+			volume: describe('[data-test="footer-player"] [class*="sliderContainer"]'),
+			qualityBadge: describe("[data-test-quality-badge-streaming-quality]"),
+			progressBar: describe('[data-test="progress-bar"]'),
+		},
+	};
+};
+
 export const buildReport = async (settings: unknown): Promise<string> => {
 	debugLog("info", "building diagnostics report");
 	const progression = await probeProgression();
@@ -168,6 +228,7 @@ export const buildReport = async (settings: unknown): Promise<string> => {
 		`tidal: ${JSON.stringify(probeTidal())}`,
 		`progression: ${JSON.stringify(progression)}`,
 		`media: ${JSON.stringify(snapshotMedia())}`,
+		`theme: ${JSON.stringify(collectThemeSnapshot())}`,
 		"",
 		`--- logs (${entries.length}) ---`,
 		getLogsText(),

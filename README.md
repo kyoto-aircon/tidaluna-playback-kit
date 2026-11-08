@@ -45,6 +45,7 @@ Open the pill → **Copy diagnostics**, or use the same action in Luna settings.
 - detected player kind (`native` / `shaka` / `browser`), native component API
 - pitch engine status (`idle` / `waiting` / `running` / `unavailable` + reason), `mediaKeys` presence
 - selector counts, every media element's state, a 1.5 s progression probe (`observedRate` vs `expectedRate`)
+- resolved design tokens (accent, surfaces, borders, warning/danger, `--baseFontSize`, `--baseLineHeight`) plus computed footer / utility / volume / quality / progress styles, for theme mismatches
 - scrubber UI time vs actual media time
 - the last 500 log lines
 
