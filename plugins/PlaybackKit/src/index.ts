@@ -2,6 +2,8 @@ import type { LunaUnload } from "@luna/core";
 import { findModuleByProperty, LunaPlugin, Tracer } from "@luna/core";
 import { redux } from "@luna/lib";
 
+import { parseConfig, serializeConfig } from "./config";
+import { getConfigPath, readConfig, writeConfig } from "./config.native";
 import { setupSpeedControl } from "./control";
 import {
 	buildReport,
@@ -176,6 +178,63 @@ const readUiPosition = (): number | null => {
 
 const timeSyncDeps = { getSpeed: () => speedStore.get().speed, isPlaying, getPosition: getActualPosition, dispatchTimeUpdate };
 
+const probeCurrentTrack = () => {
+	try {
+		const state = redux.store.getState() as {
+			playQueue?: { elements?: Array<{ mediaItemId?: string | number }>; currentIndex?: number };
+			content?: { mediaItems?: Record<string, Record<string, unknown>> };
+		};
+		const queue = state.playQueue;
+		const id = queue?.elements?.[queue.currentIndex ?? -1]?.mediaItemId;
+		if (id === undefined) return null;
+		const item = state.content?.mediaItems?.[String(id)];
+		if (item === undefined) return { id, found: false };
+		return {
+			id,
+			found: true,
+			title: item.title,
+			bpm: item.bpm ?? null,
+			key: item.key ?? item.keyScale ?? null,
+			metadataKeys: Object.keys(item).filter((key) => /bpm|key|tempo|tone/i.test(key)),
+		};
+	} catch (err) {
+		return { error: String(err) };
+	}
+};
+
+let configReady = false;
+let configSaveTimer: ReturnType<typeof setTimeout> | undefined;
+const configSnapshot = (): string => serializeConfig(speedStore.get(), presetStore.get());
+
+const scheduleConfigSave = (): void => {
+	if (!configReady) return;
+	if (configSaveTimer !== undefined) clearTimeout(configSaveTimer);
+	configSaveTimer = setTimeout(() => {
+		configSaveTimer = undefined;
+		writeConfig(configSnapshot()).catch((err) => debugLog("error", "config save failed", { error: String(err) }));
+	}, 300);
+};
+
+const hydrateConfig = async (): Promise<void> => {
+	try {
+		const raw = await readConfig();
+		const parsed = raw === null ? undefined : parseConfig(raw);
+		const path = await getConfigPath();
+		if (parsed !== undefined) {
+			speedStore.replace(parsed.settings);
+			presetStore.replace(parsed.presets);
+			debugLog("info", "config loaded", { path, speed: parsed.settings.speed, presets: parsed.presets.length });
+		} else {
+			await writeConfig(configSnapshot());
+			debugLog("info", raw === null ? "config created" : "config invalid, rewrote defaults", { path });
+		}
+	} catch (err) {
+		debugLog("warn", "config file unavailable; using browser storage only", { error: String(err) });
+	} finally {
+		configReady = true;
+	}
+};
+
 const openLunaSettings = (): void => {
 	try {
 		const push = (redux.actions as unknown as Record<string, (payload: unknown) => unknown>)["router/PUSH"];
@@ -255,6 +314,7 @@ try {
 		native: probeNativeComponent(),
 		nativeInstance: hasNativeInstance(),
 		speed: speedStore.get().speed,
+		track: probeCurrentTrack(),
 		pitchSemitones: speedStore.get().pitchSemitones,
 		pitchEngine: getPitchEngineState(),
 		presetId: speedStore.get().presetId,
@@ -276,12 +336,16 @@ try {
 	controller.start();
 
 	const unsubscribe = speedStore.subscribe((settings) => {
+		scheduleConfigSave();
 		debugLog("info", "settings changed", { speed: settings.speed, pitchShifts: settings.pitchShifts, bounds: settings.bounds });
 		controller.apply();
 		if (getPlayerKind() === "native") applyNativeRate(settings.speed);
 		syncOnce(timeSyncDeps);
 		void setPitchSemitones(settings.pitchSemitones, getMediaElements());
 	});
+	presetStore.subscribe(scheduleConfigSave);
+	void hydrateConfig();
+
 	const presetControls = {
 		list: () => presetStore.get(),
 		apply: (preset: PlaybackPreset) => {
@@ -327,6 +391,10 @@ try {
 	}, PLAYER_POLL_MS);
 
 	unloads.add(() => {
+		if (configSaveTimer !== undefined) {
+			clearTimeout(configSaveTimer);
+			void writeConfig(configSnapshot());
+		}
 		clearInterval(scanTimer);
 		clearInterval(playerTimer);
 		stopTimeSync();

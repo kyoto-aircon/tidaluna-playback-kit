@@ -33,3 +33,12 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 - Scrubber math: TIDAL uses `latestCurrentTime + |now - sync|/1000` (1× assumption); `timeSync.ts` dispatches `playbackControls/TIME_UPDATE` every 100 ms at other rates.
 - Typography: all font sizes are rem against TIDAL's 14px base (html font-size = --baseFontSize, body 1rem, --baseLineHeight); no px font sizes. The popover inherits the token line-height.
 - Pitch-engine status is a dot on the Pitch shift label (detailed reason in its title/diagnostics), deliberately outside layout flow: showing it must never change the popover height while the user is clicking +/-.
+
+## Config file
+
+- The renderer has no filesystem access (nodeIntegration is off). File IO goes through `config.native.ts`, which Luna compiles into a main-process module and exposes as IPC proxies (build via `lunaNativePlugin`). Never import Node builtins from non-`.native` files.
+- Path: `<userData>/playback-kit/config.json`; atomic write via `config.json.tmp` + rename. Created on first load when missing.
+- `config.ts` holds the versioned schema (`version: 1`), validation and serialization; it reuses the store parsers so imports are sanitised exactly like local storage.
+- Autosave is debounced 300 ms on both stores; imported/reloaded configs are written back. The built-in nightcore preset is implicit and must not be serialized.
+- `presetStore` supports rename / update / move / replace; the built-in cannot be edited, moved or deleted.
+- Native modules are sandboxed: `fs` and `electron` are not whitelisted, so Luna prompts for trust per module (cached in `luna-trust-store.enc`). Require them lazily inside functions so registration never prompts; deny means fall back to local storage. `path` is whitelisted; `process.env` is a frozen subset (APPDATA/HOME/USERPROFILE, no XDG_CONFIG_HOME) and `process.resourcesPath` is available, which is how the userData folder is derived without `electron.app`.

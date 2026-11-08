@@ -88,3 +88,34 @@ describe("preset store", () => {
 		assert.equal(key, PRESETS_KEY);
 	});
 });
+
+describe("preset editing", () => {
+	it("renames, updates and reorders custom presets", () => {
+		const store = createPresetStore(fakeStorage());
+		const a = store.save("Alpha", values)!;
+		const b = store.save("Beta", values)!;
+
+		assert.equal(store.rename(a.id, "Alpha 2"), true);
+		assert.equal(store.get().find((preset) => preset.id === a.id)?.name, "Alpha 2");
+		assert.equal(store.rename(NIGHTCORE_ID, "Nope"), false);
+		assert.equal(store.rename(a.id, "   "), false);
+
+		assert.equal(store.update(a.id, { speed: 0.8, pitchShifts: false, pitchSemitones: -3 }), true);
+		const updated = store.get().find((preset) => preset.id === a.id);
+		assert.deepEqual([updated?.speed, updated?.pitchSemitones], [0.8, -3]);
+		assert.equal(store.update(NIGHTCORE_ID, values), false);
+
+		assert.equal(store.move(b.id, -1), true);
+		assert.deepEqual(store.get().map((preset) => preset.name), ["Nightcore", "Beta", "Alpha 2"]);
+		assert.equal(store.move(b.id, -1), false, "cannot move above the built-in");
+		assert.equal(store.move(b.id, 1), true);
+		assert.deepEqual(store.get().map((preset) => preset.name), ["Nightcore", "Alpha 2", "Beta"]);
+	});
+
+	it("replaces the custom list from config, keeping nightcore implicit", () => {
+		const store = createPresetStore(fakeStorage());
+		store.save("Old", values);
+		store.replace([NIGHTCORE_PRESET, { id: "new-1", name: "New", speed: 2, pitchShifts: false, pitchSemitones: 1 }]);
+		assert.deepEqual(store.get().map((preset) => preset.name), ["Nightcore", "New"]);
+	});
+});

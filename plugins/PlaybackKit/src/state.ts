@@ -138,6 +138,18 @@ export const createSpeedStore = (storage: StorageLike, key: string = STORAGE_KEY
 		clearPreset(): void {
 			commit({ ...settings, presetId: null });
 		},
+		/** Replaces the whole settings object (config file / import). */
+		replace(next: SpeedSettings): void {
+			const bounds = normalizeBounds(next.bounds);
+			const semitones = clampSemitones(next.pitchSemitones);
+			commit({
+				speed: clampSpeed(next.speed, bounds),
+				pitchShifts: semitones === 0 && next.pitchShifts === true,
+				pitchSemitones: semitones,
+				presetId: typeof next.presetId === "string" ? next.presetId : null,
+				bounds,
+			});
+		},
 		reset(): void {
 			commit({ ...defaults(), presetId: null, bounds: { ...settings.bounds } });
 		},

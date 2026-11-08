@@ -140,6 +140,48 @@ export const createPresetStore = (storage: PresetStorage, key: string = PRESETS_
 			emit();
 			return true;
 		},
+		rename(id: string, name: unknown): boolean {
+			if (id === NIGHTCORE_ID) return false;
+			const safeName = sanitizeName(name);
+			const preset = customs.find((entry) => entry.id === id);
+			if (safeName === undefined || preset === undefined) return false;
+			preset.name = safeName;
+			persist();
+			emit();
+			return true;
+		},
+		update(id: string, values: PresetValues): boolean {
+			if (id === NIGHTCORE_ID) return false;
+			const preset = customs.find((entry) => entry.id === id);
+			if (preset === undefined) return false;
+			preset.speed = sanitizeSpeed(values.speed);
+			preset.pitchShifts = values.pitchShifts === true;
+			preset.pitchSemitones = clampSemitones(values.pitchSemitones);
+			persist();
+			emit();
+			return true;
+		},
+		move(id: string, direction: number): boolean {
+			if (id === NIGHTCORE_ID) return false;
+			const index = customs.findIndex((entry) => entry.id === id);
+			const target = index + Math.sign(direction);
+			if (index < 0 || target < 0 || target >= customs.length) return false;
+			const [preset] = customs.splice(index, 1);
+			customs.splice(target, 0, preset);
+			persist();
+			emit();
+			return true;
+		},
+		/** Replaces all custom presets (config import / file load). Built-in nightcore is implicit. */
+		replace(presets: PlaybackPreset[]): void {
+			const seen = new Set<string>();
+			customs = presets
+				.filter((preset) => preset.builtin !== true)
+				.map((preset) => parseCustomPreset(preset, seen))
+				.filter((preset): preset is PlaybackPreset => preset !== undefined);
+			persist();
+			emit();
+		},
 		subscribe(listener: () => void): () => void {
 			listeners.add(listener);
 			return () => listeners.delete(listener);

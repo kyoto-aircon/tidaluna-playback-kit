@@ -23,6 +23,8 @@ A pill beside the volume control shows the live rate and opens a log-scaled spee
 - **Pitch follows speed** — rate-based chipmunk / slow-mo, YouTube-style pitch preservation by default.
 - **Pitch shifter** — independent `−12…+12` semitone offset through a Web Audio worklet, with the rate untouched. Mutually exclusive with *Pitch follows speed*: turning one on turns the other off.
 - **Presets** — save the current speed/pitch as a named preset, apply one with a click, delete custom ones. While a preset is active the playback controls are locked; choose **Custom** to edit again.
+- **Preset editing** — rename, overwrite from the current state, and reorder custom presets in Luna settings; Nightcore stays fixed at the top and cannot be edited or removed.
+- **Config file** — settings and presets live in a versioned JSON file inside TIDAL's userData folder (`playback-kit/config.json`), editable outside Luna and backed up by copying. Settings autosave 300 ms after changes; **Reload** re-reads the file, **Import…/Export…** just replace/copy it through a file dialog.
 - **Nightcore** — the built-in preset (cannot be removed): `1.35×` with pitch following speed.
 - **Theme-aware** — the popover mounts inside TIDAL's app root (`#wimp`) and every colour/font comes from TIDAL's own design tokens and inherited styles. No hardcoded palette or px font sizes: colours, fonts and the rem type scale follow TIDAL, so token/theme changes propagate.
 - **Luna settings shortcut** — the popover footer has **Luna settings**, which opens the settings page on the Plugins tab and scrolls to this plugin's card.
@@ -50,6 +52,36 @@ Open the pill → **Copy diagnostics**, or use the same action in Luna settings.
 - the last 500 log lines
 
 DevTools exposes `window.__playbackSpeed` (`logs()`, `report()`, `copy()`, `selectors()`, `playerKind()`); console entries use the `[PlaybackKit]` prefix.
+
+## Config file
+
+Everything persistent is in one versioned JSON file, in TIDAL's Electron `userData` folder:
+
+- Windows: `%APPDATA%/TIDAL/playback-kit/config.json`
+- macOS: `~/Library/Application Support/TIDAL/playback-kit/config.json`
+- Linux: `~/.config/TIDAL/playback-kit/config.json`
+
+The exact path is shown in **Luna settings → Playback Kit → Config file**. Luna settings also has **Show folder**, **Reload**, **Import…** and **Export…**.
+
+```json
+{
+  "version": 1,
+  "settings": {
+    "speed": 1.35,
+    "pitchShifts": true,
+    "pitchSemitones": 0,
+    "presetId": "nightcore",
+    "bounds": { "min": 0.05, "max": 10, "step": 0.01 }
+  },
+  "presets": [
+    { "id": "custom-abc", "name": "Practice", "speed": 1.2, "pitchShifts": false, "pitchSemitones": 2 }
+  ]
+}
+```
+
+`nightcore` is implicit and must not be added to `presets`. Edit the file with TIDAL closed (or press **Reload** after editing), keep `version` at `1`, and back it up by copying the file.
+
+The first config read asks Luna to allow the plugin's native module **fs** access; **Import…/Export…/Show folder** ask for **electron** access the first time they are used. Both are cached by Luna's trust store; deny them and the plugin falls back to browser storage.
 
 ## Development
 
