@@ -21,6 +21,7 @@ export interface AudioEngineApi {
 	loadWorklet(source: string, name: string): Promise<void>;
 	attach(element: HTMLMediaElement): Promise<void>;
 	insert(node: AudioNode, index?: number): Promise<void>;
+	insertGroup(input: AudioNode, output: AudioNode, index?: number): Promise<void>;
 	remove(node: AudioNode): Promise<boolean>;
 	list(): AudioNode[];
 	status(): AudioEngineStatus;
@@ -35,7 +36,12 @@ let context: AudioContext | undefined;
 let chainIn: GainNode | undefined;
 let chainOut: GainNode | undefined;
 let analyser: AnalyserNode | undefined;
-let nodes: AudioNode[] = [];
+interface ChainItem {
+	input: AudioNode;
+	output: AudioNode;
+}
+
+let chain: ChainItem[] = [];
 
 const sources = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
 let sourceCount = 0;
@@ -64,11 +70,17 @@ export const ensureContext = async (): Promise<AudioContext> => {
 const rebuild = (): void => {
 	if (chainIn === undefined || chainOut === undefined) return;
 	chainIn.disconnect();
-	for (const node of nodes) node.disconnect();
+	for (const item of chain) {
+		try {
+			item.output.disconnect();
+		} catch {
+			// Already disconnected.
+		}
+	}
 	let previous: AudioNode = chainIn;
-	for (const node of nodes) {
-		previous.connect(node);
-		previous = node;
+	for (const item of chain) {
+		previous.connect(item.input);
+		previous = item.output;
 	}
 	previous.connect(chainOut);
 };
@@ -128,21 +140,26 @@ export const attach = async (element: HTMLMediaElement): Promise<void> => {
 };
 
 export const insert = async (node: AudioNode, index?: number): Promise<void> => {
+	await insertGroup(node, node, index);
+};
+
+/** Insert a multi-node effect: engine connects previous -> input and output -> next. */
+export const insertGroup = async (input: AudioNode, output: AudioNode, index?: number): Promise<void> => {
 	await ensureChain();
-	if (nodes.includes(node)) return;
-	const at = index === undefined ? nodes.length : Math.max(0, Math.min(nodes.length, index));
-	nodes.splice(at, 0, node);
+	if (chain.some((item) => item.input === input)) return;
+	const at = index === undefined ? chain.length : Math.max(0, Math.min(chain.length, index));
+	chain.splice(at, 0, { input, output });
 	rebuild();
-	debugLog("debug", "audio engine inserted node", { type: node.constructor.name, index: at, nodes: nodes.length });
+	debugLog("debug", "audio engine inserted group", { index: at, nodes: chain.length });
 };
 
 export const remove = async (node: AudioNode): Promise<boolean> => {
 	await ensureChain();
-	const index = nodes.indexOf(node);
+	const index = chain.findIndex((item) => item.input === node || item.output === node);
 	if (index < 0) return false;
-	nodes.splice(index, 1);
+	const [item] = chain.splice(index, 1);
 	try {
-		node.disconnect();
+		item.output.disconnect();
 	} catch {
 		// Already disconnected.
 	}
@@ -150,13 +167,13 @@ export const remove = async (node: AudioNode): Promise<boolean> => {
 	return true;
 };
 
-export const list = (): AudioNode[] => [...nodes];
+export const list = (): AudioNode[] => chain.map((item) => item.input);
 
 export const getStatus = (): AudioEngineStatus => ({
 	context: context === undefined ? "none" : context.state,
 	sampleRate: context?.sampleRate,
 	sources: sourceCount,
-	nodes: nodes.length,
+	nodes: chain.length,
 });
 
 export const measureRms = async (durationMs: number = 1200): Promise<RmsResult> => {
@@ -192,6 +209,7 @@ export const getAudioEngineApi = (): AudioEngineApi => ({
 	loadWorklet,
 	attach,
 	insert,
+	insertGroup,
 	remove,
 	list,
 	status: getStatus,

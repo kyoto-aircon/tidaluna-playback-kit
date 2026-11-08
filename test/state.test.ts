@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { DEFAULT_EFFECTS } from "../plugins/PlaybackKit/src/effectsSettings";
 import { NIGHTCORE_PRESET } from "../plugins/PlaybackKit/src/presets";
 import { createSpeedStore, STORAGE_KEY, type StorageLike } from "../plugins/PlaybackKit/src/state";
 
@@ -21,6 +22,7 @@ const defaults = {
 	pitchSemitones: 0,
 	presetId: null,
 	developerMode: false,
+	effects: DEFAULT_EFFECTS,
 	bounds: { min: 0.05, max: 10, step: 0.05 },
 };
 
@@ -134,6 +136,18 @@ describe("speed store", () => {
 		store.clearPreset();
 		assert.equal(store.get().presetId, null);
 		assert.equal(store.get().speed, 1.35, "clearing keeps the applied values");
+	});
+
+	it("persists effects and keeps the active preset", () => {
+		const storage = fakeStorage();
+		const store = createSpeedStore(storage);
+		store.applyPreset(NIGHTCORE_PRESET);
+		store.setEffects({ ...DEFAULT_EFFECTS, reverb: { enabled: true, decay: 4, mix: 0.4 } });
+		assert.equal(store.get().presetId, "nightcore");
+		assert.equal(store.get().effects.reverb.decay, 4);
+		assert.equal(createSpeedStore(storage).get().effects.reverb.enabled, true);
+		store.reset();
+		assert.equal(store.get().effects.reverb.enabled, true, "reset keeps effects");
 	});
 
 	it("toggles developer mode without touching the active preset", () => {

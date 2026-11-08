@@ -57,7 +57,15 @@ export const Settings = () => {
 		return () => clearTimeout(timer);
 	}, [configStatus]);
 
-	const { bounds, pitchShifts, developerMode } = settings;
+	const { bounds, pitchShifts, developerMode, effects } = settings;
+
+	const setEq = (patch: Partial<typeof effects.eq>) => speedStore.setEffects({ ...effects, eq: { ...effects.eq, ...patch } });
+	const setDelay = (patch: Partial<typeof effects.delay>) => speedStore.setEffects({ ...effects, delay: { ...effects.delay, ...patch } });
+	const setReverb = (patch: Partial<typeof effects.reverb>) => speedStore.setEffects({ ...effects, reverb: { ...effects.reverb, ...patch } });
+	const parseNumber = (raw: string): number | undefined => {
+		const value = Number(raw.trim().replace(",", "."));
+		return Number.isFinite(value) ? value : undefined;
+	};
 
 	const applyConfigJson = async (json: string): Promise<boolean> => {
 		const config = parseConfig(json);
@@ -250,6 +258,99 @@ export const Settings = () => {
 						</LunaSetting>
 					</>
 				)}
+			</LunaSettings>
+
+			<LunaSettings title="Effects" desc="Applied to the same Web Audio chain as the pitch shifter. Requires audio capture (use the dev-mode self-test if nothing changes).">
+				<LunaSwitchSetting
+					title="Equalizer"
+					desc="Low shelf 200 Hz, peaking 1 kHz, high shelf 4 kHz. Gains in dB."
+					checked={effects.eq.enabled}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEq({ enabled: e.target.checked })}
+				/>
+				<LunaTextSetting
+					title="Low gain (dB)"
+					defaultValue={String(effects.eq.low)}
+					inputProps={{ inputMode: "decimal" }}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+						const value = parseNumber(e.target.value);
+						if (value !== undefined) setEq({ low: Math.max(-12, Math.min(12, value)) });
+					}}
+				/>
+				<LunaTextSetting
+					title="Mid gain (dB)"
+					defaultValue={String(effects.eq.mid)}
+					inputProps={{ inputMode: "decimal" }}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+						const value = parseNumber(e.target.value);
+						if (value !== undefined) setEq({ mid: Math.max(-12, Math.min(12, value)) });
+					}}
+				/>
+				<LunaTextSetting
+					title="High gain (dB)"
+					defaultValue={String(effects.eq.high)}
+					inputProps={{ inputMode: "decimal" }}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+						const value = parseNumber(e.target.value);
+						if (value !== undefined) setEq({ high: Math.max(-12, Math.min(12, value)) });
+					}}
+				/>
+				<LunaSwitchSetting
+					title="Delay"
+					desc="Feedback delay. Mix and feedback are percentages; time in ms."
+					checked={effects.delay.enabled}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDelay({ enabled: e.target.checked })}
+				/>
+				<LunaTextSetting
+					title="Delay time (ms)"
+					defaultValue={String(Math.round(effects.delay.timeMs))}
+					inputProps={{ inputMode: "numeric" }}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+						const value = parseNumber(e.target.value);
+						if (value !== undefined) setDelay({ timeMs: Math.max(20, Math.min(2000, value)) });
+					}}
+				/>
+				<LunaTextSetting
+					title="Delay feedback (%)"
+					defaultValue={String(Math.round(effects.delay.feedback * 100))}
+					inputProps={{ inputMode: "numeric" }}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+						const value = parseNumber(e.target.value);
+						if (value !== undefined) setDelay({ feedback: Math.max(0, Math.min(90, value)) / 100 });
+					}}
+				/>
+				<LunaTextSetting
+					title="Delay mix (%)"
+					defaultValue={String(Math.round(effects.delay.mix * 100))}
+					inputProps={{ inputMode: "numeric" }}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+						const value = parseNumber(e.target.value);
+						if (value !== undefined) setDelay({ mix: Math.max(0, Math.min(100, value)) / 100 });
+					}}
+				/>
+				<LunaSwitchSetting
+					title="Reverb"
+					desc="Generated impulse response; decay in seconds, mix in percent."
+					checked={effects.reverb.enabled}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReverb({ enabled: e.target.checked })}
+				/>
+				<LunaTextSetting
+					title="Reverb decay (s)"
+					defaultValue={String(effects.reverb.decay)}
+					inputProps={{ inputMode: "decimal" }}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+						const value = parseNumber(e.target.value);
+						if (value !== undefined) setReverb({ decay: Math.max(0.2, Math.min(8, value)) });
+					}}
+				/>
+				<LunaTextSetting
+					title="Reverb mix (%)"
+					defaultValue={String(Math.round(effects.reverb.mix * 100))}
+					inputProps={{ inputMode: "numeric" }}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+						const value = parseNumber(e.target.value);
+						if (value !== undefined) setReverb({ mix: Math.max(0, Math.min(100, value)) / 100 });
+					}}
+				/>
 			</LunaSettings>
 
 			<LunaSettings title="Config file" desc="The JSON file is the source of truth and can be edited outside Luna. Backup by copying it.">

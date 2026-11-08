@@ -1,3 +1,4 @@
+import { normalizeEffects, type EffectsSettings } from "./effectsSettings";
 import { clampSemitones, PITCH_DEFAULT } from "./pitch";
 import type { PlaybackPreset } from "./presets";
 import { clampSpeed, DEFAULT_BOUNDS, DEFAULT_SPEED, normalizeBounds, stepSpeed, type SpeedBounds } from "./speed";
@@ -16,6 +17,8 @@ export interface SpeedSettings {
 	presetId: string | null;
 	/** Writes logs and shows the Copy diagnostics actions. */
 	developerMode: boolean;
+	/** Delay / reverb / EQ settings. */
+	effects: EffectsSettings;
 	/** Slider range and snap increment. */
 	bounds: SpeedBounds;
 }
@@ -33,6 +36,7 @@ const defaults = (): SpeedSettings => ({
 	pitchSemitones: PITCH_DEFAULT,
 	presetId: null,
 	developerMode: false,
+	effects: normalizeEffects(undefined),
 	bounds: { ...DEFAULT_BOUNDS },
 });
 
@@ -54,6 +58,7 @@ const parseSettings = (raw: string | null): SpeedSettings => {
 		pitchSemitones,
 		presetId: typeof record.presetId === "string" ? record.presetId : null,
 		developerMode: record.developerMode === true,
+		effects: normalizeEffects(record.effects),
 		bounds,
 	};
 };
@@ -75,6 +80,7 @@ const sameSettings = (a: SpeedSettings, b: SpeedSettings): boolean =>
 	a.pitchSemitones === b.pitchSemitones &&
 	a.presetId === b.presetId &&
 	a.developerMode === b.developerMode &&
+	JSON.stringify(a.effects) === JSON.stringify(b.effects) &&
 	a.bounds.min === b.bounds.min &&
 	a.bounds.max === b.bounds.max &&
 	a.bounds.step === b.bounds.step;
@@ -140,6 +146,9 @@ export const createSpeedStore = (storage: StorageLike, key: string = STORAGE_KEY
 				presetId: preset.id,
 			});
 		},
+		setEffects(effects: EffectsSettings): void {
+			commit({ ...settings, effects: normalizeEffects(effects) });
+		},
 		setDeveloperMode(developerMode: boolean): void {
 			commit({ ...settings, developerMode });
 		},
@@ -156,11 +165,12 @@ export const createSpeedStore = (storage: StorageLike, key: string = STORAGE_KEY
 				pitchSemitones: semitones,
 				presetId: typeof next.presetId === "string" ? next.presetId : null,
 				developerMode: next.developerMode === true,
+				effects: normalizeEffects(next.effects),
 				bounds,
 			});
 		},
 		reset(): void {
-			commit({ ...defaults(), developerMode: settings.developerMode, presetId: null, bounds: { ...settings.bounds } });
+			commit({ ...defaults(), developerMode: settings.developerMode, effects: settings.effects, presetId: null, bounds: { ...settings.bounds } });
 		},
 		destroy(): void {
 			listeners.clear();

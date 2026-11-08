@@ -54,3 +54,10 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 
 - `settings.developerMode` (default false) gates `debugLog`: when false the ring buffer is cleared and every call is a no-op, and both Copy diagnostics buttons are hidden. `debugLog` used to be unconditional; do not add logging that assumes it runs.
 - index calls `setDiagnosticsEnabled(store.get().developerMode)` before its first log and on every store change; `reset()` keeps the flag.
+
+## Effects
+
+- `effectsSettings.ts` owns the schema/defaults/clamps: EQ ±12 dB shelves (200 Hz / 1 kHz peak / 4 kHz), delay 20–2000 ms, feedback 0–0.9, reverb decay 0.2–8 s, mixes 0–1.
+- `effectsEngine.ts` builds one group (`insertGroup(fxIn, fxOut)`) with `eq → (dry+delay) → (dry+convolution)` and inserts it after pitch. Parameters use `setTargetAtTime`; the reverb impulse is regenerated only when decay changes by >0.05 s.
+- If the context is suspended (e.g. effects enabled from config at startup), `updateEffects` does not attach and reports `audio context suspended`; the 1 s scan retries after a user gesture.
+- Effects share the single MediaElementSource with the pitch shifter, so both depend on capture succeeding.

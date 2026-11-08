@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { CONFIG_VERSION, parseConfig, serializeConfig } from "../plugins/PlaybackKit/src/config";
+import { DEFAULT_EFFECTS } from "../plugins/PlaybackKit/src/effectsSettings";
 import { NIGHTCORE_PRESET } from "../plugins/PlaybackKit/src/presets";
 
 const settings = {
@@ -10,6 +11,7 @@ const settings = {
 	pitchSemitones: 0,
 	presetId: "nightcore",
 	developerMode: false,
+	effects: DEFAULT_EFFECTS,
 	bounds: { min: 0.05, max: 10, step: 0.01 },
 };
 

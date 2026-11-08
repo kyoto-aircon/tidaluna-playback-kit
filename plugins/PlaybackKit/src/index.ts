@@ -6,6 +6,8 @@ import { parseConfig, serializeConfig } from "./config";
 import { getConfigPath, readConfig, writeConfig } from "./config.native";
 import { exposeAudioEngine, getStatus as getAudioEngineStatus, hideAudioEngine } from "./audioEngine";
 import { setupSpeedControl } from "./control";
+import { hasAudibleEffects } from "./effectsSettings";
+import { getEffectsEngineState, updateEffects } from "./effectsEngine";
 import {
 	buildReport,
 	clearLogs,
@@ -320,6 +322,7 @@ try {
 		speed: speedStore.get().speed,
 		track: probeCurrentTrack(),
 		audioEngine: getAudioEngineStatus(),
+		effects: getEffectsEngineState(),
 		pitchSemitones: speedStore.get().pitchSemitones,
 		pitchEngine: getPitchEngineState(),
 		presetId: speedStore.get().presetId,
@@ -351,6 +354,7 @@ try {
 		if (getPlayerKind() === "native") applyNativeRate(settings.speed);
 		syncOnce(timeSyncDeps);
 		void setPitchSemitones(settings.pitchSemitones, getMediaElements());
+		void updateEffects(settings.effects, getMediaElements());
 	});
 	presetStore.subscribe(scheduleConfigSave);
 	void hydrateConfig();
@@ -385,6 +389,8 @@ try {
 		controller.scan();
 		const semitones = speedStore.get().pitchSemitones;
 		if (semitones !== 0) void setPitchSemitones(semitones, getMediaElements());
+		const effects = speedStore.get().effects;
+		if (hasAudibleEffects(effects)) void updateEffects(effects, getMediaElements());
 	}, SCAN_INTERVAL_MS);
 	const stopTimeSync = startTimeSync(timeSyncDeps);
 	setPlayerKind(detectPlayerKind());
