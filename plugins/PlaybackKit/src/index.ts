@@ -1,5 +1,5 @@
 import type { LunaUnload } from "@luna/core";
-import { findModuleByProperty, Tracer } from "@luna/core";
+import { findModuleByProperty, LunaPlugin, Tracer } from "@luna/core";
 import { redux } from "@luna/lib";
 
 import { setupSpeedControl } from "./control";
@@ -18,7 +18,9 @@ import {
 } from "./debug";
 import { getMediaElements, SpeedController } from "./mediaController";
 import { applyNativeRate, captureNativeComponent, hasNativeInstance, probeNativeComponent } from "./nativePlayer";
+import { getPitchEngineState, setPitchSemitones } from "./pitchEngine";
 import { getPlayerKind, setPlayerKind, subscribePlayerKind, type PlayerKind } from "./playerKind";
+import { presetStore, type PlaybackPreset, type PresetValues } from "./presets";
 import { speedStore } from "./state";
 import { startTimeSync, syncOnce } from "./timeSync";
 
@@ -26,7 +28,7 @@ export { Settings } from "./Settings";
 
 export const unloads = new Set<LunaUnload>();
 
-const { trace } = Tracer("[PlaybackSpeed]");
+const { trace } = Tracer("[PlaybackKit]");
 const SCAN_INTERVAL_MS = 1000;
 const PLAYER_POLL_MS = 1500;
 const QUALITY_KEY = "tidaluna.playback-speed.previous-quality";
@@ -221,11 +223,20 @@ const installDebugApi = (controller: SpeedController): void => {
 
 try {
 	registerTidalProbe(probeActivePlayer);
+	try {
+		const legacy = LunaPlugin.getByName("@kyoto-aircon/playback-speed") as { store?: { enabled?: boolean } } | undefined;
+		if (legacy !== undefined) debugLog("warn", "old Playback Speed plugin is still installed", { enabled: legacy.store?.enabled });
+	} catch {
+		// Not fatal; just diagnostics.
+	}
 	registerReportExtras(() => ({
 		kind: getPlayerKind(),
 		native: probeNativeComponent(),
 		nativeInstance: hasNativeInstance(),
 		speed: speedStore.get().speed,
+		pitchSemitones: speedStore.get().pitchSemitones,
+		pitchEngine: getPitchEngineState(),
+		presetId: speedStore.get().presetId,
 		uiTime: readUiPosition(),
 		actualTime: getActualPosition(),
 	}));
@@ -248,18 +259,34 @@ try {
 		controller.apply();
 		if (getPlayerKind() === "native") applyNativeRate(settings.speed);
 		syncOnce(timeSyncDeps);
+		void setPitchSemitones(settings.pitchSemitones, getMediaElements());
 	});
+	const presetControls = {
+		list: () => presetStore.get(),
+		apply: (preset: PlaybackPreset) => {
+			speedStore.applyPreset(preset);
+			debugLog("info", "preset applied", { id: preset.id, name: preset.name });
+		},
+		clear: () => speedStore.clearPreset(),
+		save: (name: string, values: PresetValues) => presetStore.save(name, values),
+	};
 	setupSpeedControl(unloads, speedStore, {
 		getPlayerKind,
 		subscribePlayerKind,
 		useBrowserPlayer,
 		previousQuality: readPreviousQuality,
 		restoreQuality,
+		presets: presetControls,
+		getPitchEngineState,
 	});
 	installDebugApi(controller);
 
 	// TIDAL swaps media elements between tracks and re-renders the footer.
-	const scanTimer = setInterval(() => controller.scan(), SCAN_INTERVAL_MS);
+	const scanTimer = setInterval(() => {
+		controller.scan();
+		const semitones = speedStore.get().pitchSemitones;
+		if (semitones !== 0) void setPitchSemitones(semitones, getMediaElements());
+	}, SCAN_INTERVAL_MS);
 	const stopTimeSync = startTimeSync(timeSyncDeps);
 	setPlayerKind(detectPlayerKind());
 	const playerTimer = setInterval(() => {

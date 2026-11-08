@@ -1,4 +1,4 @@
-export const PLUGIN_VERSION = "1.4.0";
+export const PLUGIN_VERSION = "2.0.0";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -33,8 +33,8 @@ export const debugLog = (level: LogLevel, message: string, data?: unknown): void
 	if (level === "debug" && !verbose) return;
 	try {
 		const method = level === "error" ? console.error : level === "warn" ? console.warn : console.debug;
-		if (data === undefined) method(`[PlaybackSpeed] ${message}`);
-		else method(`[PlaybackSpeed] ${message}`, data);
+		if (data === undefined) method(`[PlaybackKit] ${message}`);
+		else method(`[PlaybackKit] ${message}`, data);
 	} catch {
 		// Console can be unavailable; the ring buffer still has it.
 	}
@@ -157,7 +157,7 @@ export const buildReport = async (settings: unknown): Promise<string> => {
 	debugLog("info", "building diagnostics report");
 	const progression = await probeProgression();
 	const header = [
-		`Playback Speed v${PLUGIN_VERSION}`,
+		`Playback Kit v${PLUGIN_VERSION}`,
 		`at: ${new Date().toISOString()}`,
 		`url: ${typeof location === "undefined" ? "?" : location.href}`,
 		`ua: ${typeof navigator === "undefined" ? "?" : navigator.userAgent}`,

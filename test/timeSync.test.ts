@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { needsSync, syncOnce, startTimeSync, type TimeSyncDeps } from "../plugins/PlaybackSpeed/src/timeSync";
+import { needsSync, syncOnce, startTimeSync, type TimeSyncDeps } from "../plugins/PlaybackKit/src/timeSync";
 
 const createDeps = (overrides: Partial<TimeSyncDeps> = {}) => {
 	const updates: number[] = [];

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { SpeedController, type MediaTarget } from "../plugins/PlaybackSpeed/src/mediaController";
+import { SpeedController, type MediaTarget } from "../plugins/PlaybackKit/src/mediaController";
 
 class FakeMedia extends EventTarget {
 	playbackRate = 1;

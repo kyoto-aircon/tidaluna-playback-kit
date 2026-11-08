@@ -1,42 +1,33 @@
 # Agent notes
 
-Single-plugin TidaLuna repo. Build with `luna/buildPlugins`; one plugin lives in `plugins/PlaybackSpeed`.
+Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the plugin lives in `plugins/PlaybackKit`.
 
 ## Commands
 
 - `npm install`
-- `npm test` — node:test through tsx, covers speed maths, store and media controller
-- `npm run build` — writes `dist/store.json` + `dist/kyoto-aircon.playback-speed.{mjs,json,map}`
+- `npm test` — node:test through tsx (speed, pitch, presets, state, controller, time sync)
+- `npm run build` — writes `dist/store.json` + `dist/kyoto-aircon.playback-kit.{mjs,json,map}`
 - `npm run serve` — http-server on :3000 for the Luna dev store
+- `GH_TOKEN=... npm run release` — upload `dist/*` to the mutable `latest` release
 
 ## Facts that matter
 
-- TIDAL renders two hidden `<video id="video-one|video-two">` elements inside `#tidal-player-root` and drives them with Shaka. Playback speed goes through `playbackRate` / `preservesPitch` on those elements, never through TIDAL internals.
-- TIDAL resets `playbackRate` on load; the controller re-asserts it on media events and via a 1 s scan.
-- The footer is `[data-test="footer-player"]`; the control is inserted into `[class*="utilityButtons"]` before the volume (`[class*="sliderContainer"]`).
+- TIDAL renders two hidden `<video id="video-one|video-two">` elements inside `#tidal-player-root` and drives them with Shaka. Speed goes through `playbackRate` / `defaultPlaybackRate` / `preservesPitch` on those elements.
+- Desktop LOSSLESS/HI_RES uses `nativePlayer` (`window.NativePlayerComponent`), no media element, no rate API. `playerKind.ts` detects it; the popover offers switching to High quality (shaka) and restoring the previous quality.
 - Chromium clamps effective rate to 0.0625×–16×.
-- Luna loads plugin exports `unloads` and `Settings`; `dist/*.json` is the manifest carrying the build hash.
+- Pitch and rate-pitch are mutually exclusive in `state.ts`; a non-zero semitone offset forces `pitchShifts` off and vice versa.
+- Presets: built-in `nightcore` (1.35×, pitch follows speed) cannot be removed; custom presets persist under `tidaluna.playback-kit.presets.v1`. Active `presetId` locks speed/pitch controls in the UI; any manual store setter clears it.
+- Settings migration reads the old `tidaluna.playback-speed.v1` key when the new key is absent.
 
-## Diagnostics
+## Pitch engine
 
-- `debug.ts` keeps a 500-entry ring buffer and mirrors to console with the `[PlaybackSpeed]` prefix.
-- `window.__playbackSpeed` exposes `logs()`, `logText()`, `report()`, `copy()`, `selectors()`, `store`.
-- The popover and the settings tab both have a "Copy diagnostics" action; reports include a 1.5 s currentTime progression probe and the TIDAL `activePlayer` probe. Use those first when a speed change doesn't reach the audio.
-
-## Native player
-
-- Desktop LOSSLESS/HI_RES plays through `nativePlayer` (`window.NativePlayerComponent`), which has no HTMLMediaElement and no rate API — element `playbackRate` is ignored there.
-- `nativePlayer.ts` patches the component prototype to capture the instance and, if a `setPlaybackRate`-like member appears, drives it.
-- `nativePlayer.ts` also exposes `useBrowserPlayer` via index (dispatch `settings/SET_STREAMING_QUALITY` → `HIGH`), which moves playback to shaka where rate works.
-- Player kind is polled every 1.5 s; the popover shows a warning while `native`.
+- `pitchEngine.ts` lazily builds `AudioContext → MediaElementSource → AudioWorkletNode → destination`.
+- Worklet source is embedded as a string in `pitchWorklet.ts` and loaded from a blob URL.
+- A `MediaElementSource` can only be created once per element; failures (already connected, DRM/mediaKeys) set status `unavailable` and leave audio untouched.
+- Ratio 1 is a transparent passthrough; the graph is never torn down once created (disconnecting would silence audio).
 
 ## UI notes
 
-- Colours/fonts come from TIDAL design tokens (`--wave-color-solid-accent-fill`, `--wave-color-solid-contrast-fill`, `--wave-color-solid-base-brighter`, `--wave-color-opacity-contrast-fill-thin`) copied from the footer's computed style onto `.lunaspeed-ctl` and `.lunaspeed-popover`; never hardcode a theme colour.
-- The slider is a custom rail/fill/thumb with an invisible `input[type=range]` on top. Fill/thumb use `calc(8px + (100% - 16px) * var(--lunaspeed-pos))` so the fill ends at the thumb centre. While dragging, `render()` must not write the slider value or it jitters.
-- Switching to the browser player stores the previous streaming quality in `localStorage` (`tidaluna.playback-speed.previous-quality`) so the popover can restore it.
-
-## Scrubber sync
-
-- TIDAL computes the displayed position as `latestCurrentTime + |Date.now() - latestCurrentTimeSyncTimestamp|/1000`; it assumes 1x and only corrects on pause/seek.
-- `timeSync.ts` dispatches `playbackControls/TIME_UPDATE` (number payload) every 100 ms while speed != 1 and playbackState is PLAYING, using the media element currentTime or activePlayer.currentTime for native.
+- Colours/fonts come from TIDAL design tokens (`--wave-color-solid-accent-fill`, `-contrast-fill`, `-base-brighter`, `-opacity-contrast-fill-thin`) copied from the footer's computed style onto `.lunaspeed-ctl` and `.lunaspeed-popover`; never hardcode a theme colour.
+- Slider is a custom rail/fill/thumb with an invisible `input[type=range]`. Fill/thumb use `calc(8px + (100% - 16px) * var(--lunaspeed-pos))` so the fill ends at the thumb centre. While dragging, `render()` must not write the slider value.
+- Scrubber math: TIDAL uses `latestCurrentTime + |now - sync|/1000` (1× assumption); `timeSync.ts` dispatches `playbackControls/TIME_UPDATE` every 100 ms at other rates.

@@ -12,7 +12,7 @@ import {
 	speedToPosition,
 	stepSpeed,
 	tickValues,
-} from "../plugins/PlaybackSpeed/src/speed";
+} from "../plugins/PlaybackKit/src/speed";
 
 describe("normalizeBounds", () => {
 	it("falls back to defaults for missing values", () => {

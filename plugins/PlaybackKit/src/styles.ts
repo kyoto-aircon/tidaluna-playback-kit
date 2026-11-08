@@ -375,4 +375,159 @@ export const SPEED_CSS = `
 	outline: 2px solid var(--lunaspeed-accent);
 	outline-offset: 2px;
 }
+.lunaspeed-presets {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 0 0 14px;
+}
+.lunaspeed-presets[hidden] {
+	display: none;
+}
+.lunaspeed-preset,
+.lunaspeed-save-toggle {
+	border: 1px solid var(--lunaspeed-border);
+	background: transparent;
+	color: var(--lunaspeed-muted);
+	font-family: inherit;
+	font-size: 11px;
+	font-weight: 600;
+	padding: 5px 10px;
+	border-radius: 999px;
+	cursor: pointer;
+}
+.lunaspeed-preset:hover,
+.lunaspeed-save-toggle:hover {
+	color: var(--lunaspeed-fg);
+	background: var(--lunaspeed-hover);
+}
+.lunaspeed-preset[data-active="true"] {
+	color: var(--lunaspeed-accent);
+	border-color: color-mix(in srgb, var(--lunaspeed-accent) 55%, transparent);
+	background: color-mix(in srgb, var(--lunaspeed-accent) 12%, transparent);
+}
+.lunaspeed-save-toggle {
+	border-style: dashed;
+}
+.lunaspeed-save {
+	display: flex;
+	gap: 6px;
+	margin: 0 0 14px;
+}
+.lunaspeed-save[hidden] {
+	display: none;
+}
+.lunaspeed-save-input {
+	flex: 1;
+	min-width: 0;
+	height: 28px;
+	border-radius: 8px;
+	border: 1px solid var(--lunaspeed-border);
+	background: color-mix(in srgb, var(--lunaspeed-fg) 5%, transparent);
+	color: var(--lunaspeed-fg);
+	font-family: inherit;
+	font-size: 12px;
+	padding: 0 8px;
+}
+.lunaspeed-save-input::placeholder {
+	color: var(--lunaspeed-faint);
+}
+.lunaspeed-save-ok,
+.lunaspeed-save-cancel {
+	border: 1px solid var(--lunaspeed-border);
+	background: transparent;
+	color: var(--lunaspeed-fg);
+	font-family: inherit;
+	font-size: 11px;
+	border-radius: 8px;
+	padding: 0 10px;
+	cursor: pointer;
+}
+.lunaspeed-save-ok:hover,
+.lunaspeed-save-cancel:hover {
+	background: var(--lunaspeed-hover);
+}
+.lunaspeed-pitch-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: 14px;
+}
+.lunaspeed-pitch-label {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--lunaspeed-fg);
+}
+.lunaspeed-pitch {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	border: 1px solid var(--lunaspeed-border);
+	border-radius: 8px;
+	padding: 2px;
+}
+.lunaspeed-pitch-step {
+	width: 26px;
+	height: 24px;
+	border: 0;
+	background: transparent;
+	color: var(--lunaspeed-muted);
+	font-family: inherit;
+	font-size: 15px;
+	font-weight: 500;
+	line-height: 1;
+	border-radius: 6px;
+	cursor: pointer;
+}
+.lunaspeed-pitch-step:hover:not(:disabled) {
+	background: var(--lunaspeed-hover);
+	color: var(--lunaspeed-fg);
+}
+.lunaspeed-pitch-step:disabled {
+	opacity: 0.35;
+	cursor: default;
+}
+.lunaspeed-pitch-value {
+	min-width: 44px;
+	text-align: center;
+	font-size: 12px;
+	color: var(--lunaspeed-fg);
+	font-variant-numeric: tabular-nums;
+}
+.lunaspeed-lock {
+	margin-top: 10px;
+	font-size: 11px;
+	line-height: 1.4;
+	color: var(--lunaspeed-muted);
+}
+.lunaspeed-lock[hidden] {
+	display: none;
+}
+.lunaspeed-engine {
+	margin-top: 6px;
+	font-size: 11px;
+	line-height: 1.4;
+	color: var(--lunaspeed-faint);
+}
+.lunaspeed-engine[hidden] {
+	display: none;
+}
+.lunaspeed-engine[data-status="unavailable"] {
+	color: #ff9b9b;
+}
+.lunaspeed-slider[data-locked="true"] {
+	opacity: 0.45;
+}
+.lunaspeed-slider[data-locked="true"] .lunaspeed-range {
+	cursor: default;
+}
+.lunaspeed-range:disabled {
+	pointer-events: none;
+}
+.lunaspeed-ctl button:disabled,
+.lunaspeed-popover button:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
 `;

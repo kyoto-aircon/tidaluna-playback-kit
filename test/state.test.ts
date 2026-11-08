@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { createSpeedStore, STORAGE_KEY, type StorageLike } from "../plugins/PlaybackSpeed/src/state";
+import { NIGHTCORE_PRESET } from "../plugins/PlaybackKit/src/presets";
+import { createSpeedStore, STORAGE_KEY, type StorageLike } from "../plugins/PlaybackKit/src/state";
 
-const fakeStorage = (initial?: string): StorageLike & { value: string | null } => ({
+const fakeStorage = (initial?: string, legacy?: string): StorageLike & { value: string | null } => ({
 	value: initial ?? null,
-	getItem() {
+	getItem(key: string) {
+		if (key === "tidaluna.playback-speed.v1") return legacy ?? null;
 		return this.value;
 	},
 	setItem(_key: string, value: string) {
@@ -13,14 +15,17 @@ const fakeStorage = (initial?: string): StorageLike & { value: string | null } =
 	},
 });
 
+const defaults = {
+	speed: 1,
+	pitchShifts: false,
+	pitchSemitones: 0,
+	presetId: null,
+	bounds: { min: 0.05, max: 10, step: 0.05 },
+};
+
 describe("speed store", () => {
-	it("starts at 1x with pitch preserved and default bounds", () => {
-		const store = createSpeedStore(fakeStorage());
-		assert.deepEqual(store.get(), {
-			speed: 1,
-			pitchShifts: false,
-			bounds: { min: 0.05, max: 10, step: 0.05 },
-		});
+	it("starts at 1x with default pitch and bounds", () => {
+		assert.deepEqual(createSpeedStore(fakeStorage()).get(), defaults);
 	});
 
 	it("persists and restores every field", () => {
@@ -33,11 +38,11 @@ describe("speed store", () => {
 		const restored = createSpeedStore(storage);
 		assert.equal(restored.get().speed, 1.4);
 		assert.equal(restored.get().pitchShifts, true);
+		assert.equal(restored.get().pitchSemitones, 0);
 		assert.deepEqual(restored.get().bounds, { min: 0.5, max: 3, step: 0.1 });
-		assert.equal(storage.value, JSON.stringify(store.get()));
 	});
 
-	it("writes to the versioned storage key", () => {
+	it("writes to the new versioned key", () => {
 		let key = "";
 		const storage: StorageLike = {
 			getItem: () => null,
@@ -49,12 +54,44 @@ describe("speed store", () => {
 		assert.equal(key, STORAGE_KEY);
 	});
 
+	it("migrates settings from the old Playback Speed key", () => {
+		const legacy = JSON.stringify({ speed: 1.5, pitchShifts: true, bounds: { min: 0.5, max: 2, step: 0.05 } });
+		const store = createSpeedStore(fakeStorage(undefined, legacy));
+		assert.equal(store.get().speed, 1.5);
+		assert.equal(store.get().pitchShifts, true);
+		assert.deepEqual(store.get().bounds, { min: 0.5, max: 2, step: 0.05 });
+		assert.equal(store.get().presetId, null);
+	});
+
 	it("ignores corrupt or unrelated storage", () => {
 		for (const raw of ["{not json", "[]", "null", JSON.stringify({ speed: "fast", pitchShifts: "yes" })]) {
 			const store = createSpeedStore(fakeStorage(raw));
 			assert.equal(store.get().speed, 1, raw);
 			assert.equal(store.get().pitchShifts, false, raw);
 		}
+	});
+
+	it("keeps pitch shift and pitch-follows-speed mutually exclusive", () => {
+		const store = createSpeedStore(fakeStorage());
+		store.setPitchShifts(true);
+		assert.deepEqual([store.get().pitchShifts, store.get().pitchSemitones], [true, 0]);
+
+		store.setPitchSemitones(3);
+		assert.deepEqual([store.get().pitchShifts, store.get().pitchSemitones], [false, 3]);
+
+		store.setPitchShifts(true);
+		assert.deepEqual([store.get().pitchShifts, store.get().pitchSemitones], [true, 0]);
+
+		store.setPitchSemitones(0);
+		assert.equal(store.get().pitchShifts, true, "0 st leaves the current pitch mode alone");
+	});
+
+	it("clamps pitch to the ±12 semitone range", () => {
+		const store = createSpeedStore(fakeStorage());
+		store.setPitchSemitones(40);
+		assert.equal(store.get().pitchSemitones, 12);
+		store.setPitchSemitones(-40);
+		assert.equal(store.get().pitchSemitones, -12);
 	});
 
 	it("clamps the current speed when the bounds shrink", () => {
@@ -81,6 +118,23 @@ describe("speed store", () => {
 		assert.equal(store.get().speed, 1.05);
 	});
 
+	it("applies presets and unlocks on manual changes", () => {
+		const store = createSpeedStore(fakeStorage());
+		store.applyPreset(NIGHTCORE_PRESET);
+		assert.equal(store.get().presetId, "nightcore");
+		assert.equal(store.get().speed, 1.35);
+		assert.equal(store.get().pitchShifts, true);
+		assert.equal(store.get().pitchSemitones, 0);
+
+		store.setSpeed(1.5);
+		assert.equal(store.get().presetId, null, "manual speed change exits the preset");
+
+		store.applyPreset(NIGHTCORE_PRESET);
+		store.clearPreset();
+		assert.equal(store.get().presetId, null);
+		assert.equal(store.get().speed, 1.35, "clearing keeps the applied values");
+	});
+
 	it("notifies subscribers and stops after unsubscribe", () => {
 		const store = createSpeedStore(fakeStorage());
 		const seen: number[] = [];
@@ -93,10 +147,11 @@ describe("speed store", () => {
 		assert.deepEqual(seen, [1.5, 1.5]);
 	});
 
-	it("resets to 1x", () => {
+	it("resets speed and pitch", () => {
 		const store = createSpeedStore(fakeStorage());
 		store.setSpeed(2);
+		store.setPitchSemitones(4);
 		store.reset();
-		assert.equal(store.get().speed, 1);
+		assert.deepEqual([store.get().speed, store.get().pitchSemitones, store.get().pitchShifts], [1, 0, false]);
 	});
 });

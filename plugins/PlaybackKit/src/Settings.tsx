@@ -2,8 +2,10 @@ import React from "react";
 
 import { LunaButtonSetting, LunaSettings, LunaSwitchSetting, LunaTextSetting } from "@luna/ui";
 
-import { formatSpeed } from "./speed";
 import { copyReport } from "./debug";
+import { formatSemitones } from "./pitch";
+import { presetStore, type PlaybackPreset } from "./presets";
+import { formatSpeed } from "./speed";
 import { speedStore } from "./state";
 
 const parsePositive = (raw: string): number | undefined => {
@@ -11,10 +13,18 @@ const parsePositive = (raw: string): number | undefined => {
 	return Number.isFinite(value) && value > 0 ? value : undefined;
 };
 
+const describePreset = (preset: PlaybackPreset): string => {
+	const pitch = preset.pitchShifts ? "pitch follows speed" : preset.pitchSemitones === 0 ? "pitch preserved" : `pitch ${formatSemitones(preset.pitchSemitones)} st`;
+	return `${formatSpeed(preset.speed)}× · ${pitch}${preset.builtin === true ? " · built-in" : ""}`;
+};
+
 export const Settings = () => {
 	const [settings, setSettings] = React.useState(speedStore.get);
+	const [presets, setPresets] = React.useState(presetStore.get);
 	const [copyStatus, setCopyStatus] = React.useState("Copy diagnostics");
+
 	React.useEffect(() => speedStore.subscribe(setSettings), []);
+	React.useEffect(() => presetStore.subscribe(() => setPresets(presetStore.get())), []);
 	React.useEffect(() => {
 		if (copyStatus === "Copy diagnostics") return;
 		const timer = setTimeout(() => setCopyStatus("Copy diagnostics"), 1800);
@@ -57,14 +67,24 @@ export const Settings = () => {
 			/>
 			<LunaSwitchSetting
 				title="Pitch follows speed"
-				desc="Off keeps pitch natural at any speed; on makes it chipmunk / slow-mo."
+				desc="Off keeps pitch natural at any speed; on makes it chipmunk / slow-mo. Clears any custom pitch shift."
 				checked={pitchShifts}
 				onChange={(e: React.ChangeEvent<HTMLInputElement>) => speedStore.setPitchShifts(e.target.checked)}
 			/>
-			<LunaButtonSetting title="Reset speed" desc="Return to 1.00×." children="Reset" onClick={() => speedStore.reset()} />
+			{presets.map((preset) => (
+				<LunaButtonSetting
+					key={preset.id}
+					title={preset.name}
+					desc={describePreset(preset)}
+					children={preset.builtin === true ? "Built-in" : "Delete"}
+					disabled={preset.builtin === true}
+					onClick={() => presetStore.remove(preset.id)}
+				/>
+			))}
+			<LunaButtonSetting title="Reset speed" desc="Return to 1.00× with no pitch change." children="Reset" onClick={() => speedStore.reset()} />
 			<LunaButtonSetting
 				title="Diagnostics"
-				desc="Copy the player/media state and recent logs, then paste them into a bug report."
+				desc="Copy the player, pitch-engine and media state plus recent logs, then paste them into a bug report."
 				children={copyStatus}
 				onClick={async () => {
 					setCopyStatus("Copying…");

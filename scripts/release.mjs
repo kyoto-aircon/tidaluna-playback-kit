@@ -4,7 +4,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 const owner = "kyoto-aircon";
-const repo = "tidaluna-playback-speed";
+const repo = "tidaluna-playback-kit";
 const tag = "latest";
 const distDir = new URL("../dist/", import.meta.url).pathname;
 
@@ -18,7 +18,7 @@ const api = "https://api.github.com";
 const headers = {
 	Authorization: `Bearer ${token}`,
 	Accept: "application/vnd.github+json",
-	"User-Agent": "tidaluna-playback-speed-release",
+	"User-Agent": "tidaluna-playback-kit-release",
 };
 
 const request = async (url, options = {}) => {

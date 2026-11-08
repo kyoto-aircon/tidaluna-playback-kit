@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { applyNativeRate, captureNativeComponent, hasNativeInstance, probeNativeComponent } from "../plugins/PlaybackSpeed/src/nativePlayer";
-import { getPlayerKind, setPlayerKind, subscribePlayerKind } from "../plugins/PlaybackSpeed/src/playerKind";
+import { applyNativeRate, captureNativeComponent, hasNativeInstance, probeNativeComponent } from "../plugins/PlaybackKit/src/nativePlayer";
+import { getPlayerKind, setPlayerKind, subscribePlayerKind } from "../plugins/PlaybackKit/src/playerKind";
 
 class FakeNative {
 	rate = 1;

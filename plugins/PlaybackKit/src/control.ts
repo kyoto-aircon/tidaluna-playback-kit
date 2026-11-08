@@ -2,7 +2,10 @@ import type { LunaUnload } from "@luna/core";
 import { StyleTag } from "@luna/lib";
 
 import { copyReport, debugLog, PLUGIN_VERSION } from "./debug";
+import { formatSemitones, MIN_SEMITONES, MAX_SEMITONES } from "./pitch";
+import type { PitchEngineState } from "./pitchEngine";
 import type { PlayerKind } from "./playerKind";
+import type { PlaybackPreset, PresetValues } from "./presets";
 import { formatSpeed, positionToSpeed, speedLabel, speedToPosition, tickValues, type SpeedBounds } from "./speed";
 import type { SpeedStore } from "./state";
 import { SPEED_CSS } from "./styles";
@@ -35,12 +38,21 @@ const qualityName = (quality: string): string => {
 	}
 };
 
+export interface PresetControls {
+	list: () => PlaybackPreset[];
+	apply: (preset: PlaybackPreset) => void;
+	clear: () => void;
+	save: (name: string, values: PresetValues) => unknown;
+}
+
 export interface SpeedControlOptions {
 	getPlayerKind?: () => PlayerKind;
 	subscribePlayerKind?: (listener: (kind: PlayerKind) => void) => () => void;
 	useBrowserPlayer?: () => void;
 	previousQuality?: () => string | null;
 	restoreQuality?: () => void;
+	presets?: PresetControls;
+	getPitchEngineState?: () => PitchEngineState;
 }
 
 export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, options: SpeedControlOptions = {}): void => {
@@ -75,16 +87,22 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 	const popover = document.createElement("div");
 	popover.className = "lunaspeed-popover";
 	popover.setAttribute("role", "dialog");
-	popover.setAttribute("aria-label", "Playback speed");
+	popover.setAttribute("aria-label", "Playback settings");
 	popover.hidden = true;
 	popover.innerHTML = `
 		<div class="lunaspeed-pop-head">
-			<span class="lunaspeed-pop-title">Playback speed</span>
+			<span class="lunaspeed-pop-title">Playback</span>
 			<button class="lunaspeed-reset" type="button">Reset</button>
 		</div>
 		<div class="lunaspeed-readout">
 			<span class="lunaspeed-value">1</span><span class="lunaspeed-unit">×</span>
 		</div>
+		<div class="lunaspeed-presets" role="group" aria-label="Presets"></div>
+		<form class="lunaspeed-save" hidden>
+			<input class="lunaspeed-save-input" type="text" maxlength="24" placeholder="Preset name" aria-label="Preset name" />
+			<button class="lunaspeed-save-ok" type="submit">Save</button>
+			<button class="lunaspeed-save-cancel" type="button">Cancel</button>
+		</form>
 		<div class="lunaspeed-slider">
 			<div class="lunaspeed-slider-rail"></div>
 			<div class="lunaspeed-slider-fill"></div>
@@ -92,13 +110,23 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 			<input class="lunaspeed-range" type="range" min="0" max="${SLIDER_RESOLUTION}" step="1" aria-label="Playback speed slider" />
 		</div>
 		<div class="lunaspeed-ticks"></div>
+		<div class="lunaspeed-pitch-row">
+			<span class="lunaspeed-pitch-label">Pitch shift</span>
+			<div class="lunaspeed-pitch">
+				<button class="lunaspeed-pitch-step" type="button" data-delta="-1" aria-label="Lower pitch">−</button>
+				<span class="lunaspeed-pitch-value">0 st</span>
+				<button class="lunaspeed-pitch-step" type="button" data-delta="1" aria-label="Raise pitch">+</button>
+			</div>
+		</div>
 		<div class="lunaspeed-switch-row">
 			<span class="lunaspeed-switch-label">Pitch follows speed</span>
 			<button class="lunaspeed-switch" type="button" role="switch" aria-checked="false" aria-label="Pitch follows speed"></button>
 		</div>
+		<div class="lunaspeed-lock" hidden></div>
+		<div class="lunaspeed-engine" hidden></div>
 		<div class="lunaspeed-warning" hidden>
 			<span class="lunaspeed-warning-title">Native (lossless) player</span>
-			<span class="lunaspeed-warning-text">TIDAL ignores playback speed here. Speed needs the browser player.</span>
+			<span class="lunaspeed-warning-text">TIDAL ignores speed and pitch here. They need the browser player.</span>
 			<button class="lunaspeed-warning-action" type="button">Use browser player</button>
 		</div>
 		<div class="lunaspeed-quality" hidden>
@@ -111,18 +139,27 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		</div>`;
 
 	const readout = popover.querySelector<HTMLElement>(".lunaspeed-value") as HTMLElement;
+	const presetRow = popover.querySelector<HTMLElement>(".lunaspeed-presets") as HTMLElement;
+	const saveForm = popover.querySelector<HTMLFormElement>(".lunaspeed-save") as HTMLFormElement;
+	const saveInput = popover.querySelector<HTMLInputElement>(".lunaspeed-save-input") as HTMLInputElement;
+	const saveCancel = popover.querySelector<HTMLButtonElement>(".lunaspeed-save-cancel") as HTMLButtonElement;
 	const slider = popover.querySelector<HTMLElement>(".lunaspeed-slider") as HTMLElement;
 	const range = popover.querySelector<HTMLInputElement>(".lunaspeed-range") as HTMLInputElement;
 	const ticks = popover.querySelector<HTMLElement>(".lunaspeed-ticks") as HTMLElement;
+	const pitchValue = popover.querySelector<HTMLElement>(".lunaspeed-pitch-value") as HTMLElement;
+	const pitchSteps = [...popover.querySelectorAll<HTMLButtonElement>(".lunaspeed-pitch-step")];
 	const pitchSwitch = popover.querySelector<HTMLButtonElement>(".lunaspeed-switch") as HTMLButtonElement;
 	const resetButton = popover.querySelector<HTMLButtonElement>(".lunaspeed-reset") as HTMLButtonElement;
 	const copyButton = popover.querySelector<HTMLButtonElement>(".lunaspeed-copy") as HTMLButtonElement;
+	const lockNote = popover.querySelector<HTMLElement>(".lunaspeed-lock") as HTMLElement;
+	const engineNote = popover.querySelector<HTMLElement>(".lunaspeed-engine") as HTMLElement;
 	const warning = popover.querySelector<HTMLElement>(".lunaspeed-warning") as HTMLElement;
 	const warningAction = popover.querySelector<HTMLButtonElement>(".lunaspeed-warning-action") as HTMLButtonElement;
 	const quality = popover.querySelector<HTMLElement>(".lunaspeed-quality") as HTMLElement;
 	const qualityAction = popover.querySelector<HTMLButtonElement>(".lunaspeed-quality-action") as HTMLButtonElement;
 
 	let ticksKey = "";
+	let presetsKey = "";
 	let isOpen = false;
 	let dragging = false;
 
@@ -170,6 +207,90 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		);
 	};
 
+	const presetName = (id: string | null): string => {
+		if (id === null) return "Custom";
+		return options.presets?.list().find((preset) => preset.id === id)?.name ?? "Custom";
+	};
+
+	const renderPresets = (): void => {
+		const presets = options.presets;
+		if (presets === undefined) {
+			presetRow.hidden = true;
+			saveForm.hidden = true;
+			return;
+		}
+		const list = presets.list();
+		const activeId = store.get().presetId;
+		const key = `${list.map((preset) => `${preset.id}:${preset.name}`).join("|")}::${activeId ?? ""}`;
+		if (key === presetsKey) return;
+		presetsKey = key;
+
+		const chips: HTMLElement[] = [];
+		const custom = document.createElement("button");
+		custom.type = "button";
+		custom.className = "lunaspeed-preset";
+		custom.textContent = "Custom";
+		custom.dataset.active = String(activeId === null);
+		custom.addEventListener("click", () => presets.clear());
+		chips.push(custom);
+
+		for (const preset of list) {
+			const chip = document.createElement("button");
+			chip.type = "button";
+			chip.className = "lunaspeed-preset";
+			chip.textContent = preset.name;
+			chip.dataset.active = String(activeId === preset.id);
+			chip.dataset.builtin = String(preset.builtin === true);
+			chip.title = `${preset.name} — ${speedLabel(preset.speed)}${preset.pitchShifts ? ", pitch follows speed" : preset.pitchSemitones !== 0 ? `, ${formatSemitones(preset.pitchSemitones)} st` : ""}`;
+			chip.addEventListener("click", () => presets.apply(preset));
+			chips.push(chip);
+		}
+
+		const save = document.createElement("button");
+		save.type = "button";
+		save.className = "lunaspeed-save-toggle";
+		save.textContent = "Save preset";
+		save.addEventListener("click", () => {
+			saveForm.hidden = !saveForm.hidden;
+			if (!saveForm.hidden) saveInput.focus();
+		});
+		chips.push(save);
+
+		presetRow.replaceChildren(...chips);
+	};
+
+	const renderPitch = (semitones: number, pitchShifts: boolean, locked: boolean): void => {
+		pitchValue.textContent = `${formatSemitones(semitones)} st`;
+		for (const button of pitchSteps) {
+			const delta = Number(button.dataset.delta);
+			button.disabled = locked || (delta < 0 ? semitones <= MIN_SEMITONES : semitones >= MAX_SEMITONES);
+			button.title = delta < 0 ? "Lower pitch by 1 semitone" : "Raise pitch by 1 semitone";
+		}
+		pitchSwitch.setAttribute("aria-checked", String(pitchShifts));
+		pitchSwitch.disabled = locked;
+	};
+
+	const renderEngine = (semitones: number): void => {
+		if (semitones === 0 || options.getPitchEngineState === undefined) {
+			engineNote.hidden = true;
+			return;
+		}
+		const engine = options.getPitchEngineState();
+		const text =
+			engine.status === "running"
+				? "Pitch engine: active"
+				: engine.status === "waiting"
+					? "Pitch engine: waiting for the audio element"
+					: engine.status === "unavailable"
+						? `Pitch engine: unavailable${engine.reason === undefined ? "" : ` — ${engine.reason}`}`
+						: engine.status === "ready"
+							? "Pitch engine: ready"
+							: "Pitch engine: idle";
+		engineNote.textContent = text;
+		engineNote.hidden = false;
+		engineNote.dataset.status = engine.status;
+	};
+
 	const renderPlayerState = (kind: PlayerKind): void => {
 		warning.hidden = kind !== "native";
 		const previous = options.previousQuality?.() ?? null;
@@ -179,11 +300,12 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 	};
 
 	const render = (): void => {
-		const { speed, pitchShifts, bounds } = store.get();
+		const settings = store.get();
+		const { speed, pitchShifts, pitchSemitones, bounds, presetId } = settings;
 		const label = speedLabel(speed);
 		pillLabel.textContent = label;
-		pill.dataset.active = String(speed !== 1);
-		pill.title = `Playback speed ${label}`;
+		pill.dataset.active = String(speed !== 1 || pitchShifts || pitchSemitones !== 0);
+		pill.title = `Playback ${label}${presetId === null ? "" : ` · ${presetName(presetId)}`}`;
 		slower.setAttribute("aria-label", `Slower by ${speedLabel(bounds.step)}`);
 		faster.setAttribute("aria-label", `Faster by ${speedLabel(bounds.step)}`);
 		slower.title = `−${formatSpeed(bounds.step)}×`;
@@ -192,8 +314,21 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		readout.textContent = formatSpeed(speed);
 		if (!dragging) syncSlider(speed, bounds);
 		range.setAttribute("aria-valuetext", label);
-		pitchSwitch.setAttribute("aria-checked", String(pitchShifts));
 		renderTicks();
+		renderPresets();
+
+		const locked = presetId !== null;
+		slider.dataset.locked = String(locked);
+		range.disabled = locked;
+		slower.disabled = locked;
+		faster.disabled = locked;
+		resetButton.disabled = locked;
+		renderPitch(pitchSemitones, pitchShifts, locked);
+		renderEngine(pitchSemitones);
+
+		lockNote.hidden = !locked;
+		if (locked) lockNote.textContent = `${presetName(presetId)} preset active — choose Custom to edit.`;
+
 		if (isOpen) positionPopover();
 	};
 
@@ -254,6 +389,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		isOpen = false;
 		popover.hidden = true;
 		delete pill.dataset.open;
+		saveForm.hidden = true;
 		document.removeEventListener("pointerdown", onDocumentPointerDown, true);
 		document.removeEventListener("keydown", onDocumentKeyDown, true);
 		window.removeEventListener("resize", onResize);
@@ -292,12 +428,14 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 	window.addEventListener("pointercancel", endDrag);
 
 	range.addEventListener("input", () => {
+		if (range.disabled) return;
 		const position = Number(range.value) / SLIDER_RESOLUTION;
 		setSliderVisual(position);
 		store.setSpeed(positionToSpeed(position, store.get().bounds));
 	});
 
 	popover.addEventListener("keydown", (event) => {
+		if (store.get().presetId !== null) return;
 		if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
 			event.preventDefault();
 			store.step(-1);
@@ -307,8 +445,35 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		}
 	});
 
+	for (const button of pitchSteps) {
+		button.addEventListener("click", () => {
+			const delta = Number(button.dataset.delta);
+			store.setPitchSemitones(store.get().pitchSemitones + delta);
+		});
+	}
+
 	pitchSwitch.addEventListener("click", () => store.setPitchShifts(!store.get().pitchShifts));
 	resetButton.addEventListener("click", () => store.reset());
+
+	saveForm.addEventListener("submit", (event) => {
+		event.preventDefault();
+		const presets = options.presets;
+		if (presets === undefined) return;
+		const name = saveInput.value.trim();
+		if (name === "") return;
+		const { speed, pitchShifts, pitchSemitones } = store.get();
+		const saved = presets.save(name, { speed, pitchShifts, pitchSemitones });
+		if (saved === undefined) return;
+		saveInput.value = "";
+		saveForm.hidden = true;
+		presetsKey = "";
+		renderPresets();
+		debugLog("info", "preset saved", { name });
+	});
+	saveCancel.addEventListener("click", () => {
+		saveForm.hidden = true;
+		saveInput.value = "";
+	});
 
 	let copyResetTimer: ReturnType<typeof setTimeout> | undefined;
 	copyButton.addEventListener("click", async () => {

@@ -1,15 +1,15 @@
 {
-	"name": "@kyoto-aircon/tidaluna-playback-speed",
-	"version": "1.4.0",
-	"description": "Playback speed control for TIDAL Luna — a speed pill beside the volume control with a slider, 0.05 snaps and pitch control.",
+	"name": "@kyoto-aircon/tidaluna-playback-kit",
+	"version": "2.0.0",
+	"description": "Playback kit for TIDAL Luna: speed slider, pitch shifter, presets and nightcore.",
 	"author": {
 		"name": "kyoto-aircon",
 		"url": "https://github.com/kyoto-aircon"
 	},
-	"homepage": "https://github.com/kyoto-aircon/tidaluna-playback-speed",
+	"homepage": "https://github.com/kyoto-aircon/tidaluna-playback-kit",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/kyoto-aircon/tidaluna-playback-speed.git"
+		"url": "git+https://github.com/kyoto-aircon/tidaluna-playback-kit.git"
 	},
 	"license": "MIT",
 	"type": "module",
