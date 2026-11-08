@@ -15,7 +15,7 @@ const settings = {
 	bounds: { min: 0.05, max: 10, step: 0.01 },
 };
 
-const custom = { id: "custom-1", name: "Practice", speed: 1.2, pitchShifts: false, pitchSemitones: 2 };
+const custom = { id: "custom-1", name: "Practice", speed: 1.2, pitchShifts: false, pitchSemitones: 2, effects: DEFAULT_EFFECTS };
 
 describe("config file", () => {
 	it("parses a valid config", () => {

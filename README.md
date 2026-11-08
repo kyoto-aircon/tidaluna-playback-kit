@@ -23,7 +23,7 @@ A pill beside the volume control shows the live rate and opens a log-scaled spee
 - **Pitch follows speed** — rate-based chipmunk / slow-mo, YouTube-style pitch preservation by default.
 - **Pitch shifter** — independent `−12…+12` semitone offset through a Web Audio worklet, with the rate untouched. Mutually exclusive with *Pitch follows speed*: turning one on turns the other off.
 - **Effects** — 8-band EQ (vertical sliders, 62 Hz–8 kHz, ±12 dB), feedback delay and generated-impulse reverb in the same Web Audio chain as pitch; per-effect enable and live parameters in Luna settings. Requires audio capture, same as the pitch shifter.
-- **Presets** — save the current speed/pitch as a named preset, apply one with a click, delete custom ones. While a preset is active the playback controls are locked; choose **Custom** to edit again.
+- **Presets** — save the current speed, pitch and effects as a named preset, apply one with a click, delete custom ones. While a preset is active the playback and effects controls are locked; choose **Custom** to edit again.
 - **Preset editing** — rename, overwrite from the current state, and reorder custom presets in Luna settings; Nightcore stays fixed at the top and cannot be edited or removed.
 - **Config file** — settings and presets live in a versioned JSON file inside TIDAL's userData folder (`playback-kit/config.json`), editable outside Luna and backed up by copying. Settings autosave 300 ms after changes; **Reload** re-reads the file, **Import…/Export…** just replace/copy it through a file dialog.
 - **Developer mode** — off by default: no log buffer, no Copy diagnostics buttons, no test tools. When on it adds **Audio engine self-test** (attach, measure RMS, explain silence/blocking).
@@ -104,7 +104,7 @@ The exact path is shown in **Luna settings → Playback Kit → Config file**. L
     "bounds": { "min": 0.05, "max": 10, "step": 0.01 }
   },
   "presets": [
-    { "id": "custom-abc", "name": "Practice", "speed": 1.2, "pitchShifts": false, "pitchSemitones": 2 }
+    { "id": "custom-abc", "name": "Practice", "speed": 1.2, "pitchShifts": false, "pitchSemitones": 2, "effects": { "eq": { "enabled": true, "bands": [4, 2, 0, -2, -1, 0, 2, 3] }, "delay": { "enabled": false, "timeMs": 250, "feedback": 0.25, "mix": 0.25 }, "reverb": { "enabled": true, "decay": 3, "mix": 0.3 } } }
   ]
 }
 ```

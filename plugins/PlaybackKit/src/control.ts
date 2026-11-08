@@ -460,8 +460,8 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		if (presets === undefined) return;
 		const name = saveInput.value.trim();
 		if (name === "") return;
-		const { speed, pitchShifts, pitchSemitones } = store.get();
-		const saved = presets.save(name, { speed, pitchShifts, pitchSemitones });
+		const { speed, pitchShifts, pitchSemitones, effects } = store.get();
+		const saved = presets.save(name, { speed, pitchShifts, pitchSemitones, effects });
 		if (saved === undefined) return;
 		saveInput.value = "";
 		saveForm.hidden = true;

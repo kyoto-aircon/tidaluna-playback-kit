@@ -62,3 +62,4 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 - If the context is suspended (e.g. effects enabled from config at startup), `updateEffects` does not attach and reports `audio context suspended`; the 1 s scan retries after a user gesture.
 - Effects share the single MediaElementSource with the pitch shifter, so both depend on capture succeeding.
 - EQ is 8 bands at 62/125/250/500/1k/2k/4k/8k Hz (lowshelf, peaking Q1.2, highshelf), stored as `eq.bands: number[8]` in dB; older `low/mid/high` configs are migrated by `normalizeBands`. UI is `EqSliders.tsx` (vertical pointer/keyboard sliders, no MUI dependency).
+- Presets now capture `effects` too: `save`/`update` take an `EffectsSettings` snapshot, `applyPreset` restores it, and any manual effect change (`setEffects`) exits the active preset exactly like speed/pitch edits. Effect controls are disabled while `presetId` is set. Nightcore ships with effects off.

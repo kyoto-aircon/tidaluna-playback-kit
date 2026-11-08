@@ -128,6 +128,7 @@ describe("speed store", () => {
 		assert.equal(store.get().speed, 1.35);
 		assert.equal(store.get().pitchShifts, true);
 		assert.equal(store.get().pitchSemitones, 0);
+		assert.equal(store.get().effects.reverb.enabled, false);
 
 		store.setSpeed(1.5);
 		assert.equal(store.get().presetId, null, "manual speed change exits the preset");
@@ -138,12 +139,12 @@ describe("speed store", () => {
 		assert.equal(store.get().speed, 1.35, "clearing keeps the applied values");
 	});
 
-	it("persists effects and keeps the active preset", () => {
+	it("persists effects; editing them exits the active preset", () => {
 		const storage = fakeStorage();
 		const store = createSpeedStore(storage);
 		store.applyPreset(NIGHTCORE_PRESET);
 		store.setEffects({ ...DEFAULT_EFFECTS, reverb: { enabled: true, decay: 4, mix: 0.4 } });
-		assert.equal(store.get().presetId, "nightcore");
+		assert.equal(store.get().presetId, null);
 		assert.equal(store.get().effects.reverb.decay, 4);
 		assert.equal(createSpeedStore(storage).get().effects.reverb.enabled, true);
 		store.reset();

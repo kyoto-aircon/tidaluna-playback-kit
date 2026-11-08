@@ -1,3 +1,4 @@
+import { DEFAULT_EFFECTS, normalizeEffects, type EffectsSettings } from "./effectsSettings";
 import { clampSemitones } from "./pitch";
 import { createBrowserStorage } from "./state";
 
@@ -9,6 +10,8 @@ export interface PlaybackPreset {
 	pitchShifts: boolean;
 	/** Independent pitch offset in semitones. */
 	pitchSemitones: number;
+	/** Effects snapshot captured with the preset. */
+	effects: EffectsSettings;
 	/** Built-in presets cannot be edited or removed. */
 	builtin?: boolean;
 }
@@ -17,6 +20,7 @@ export interface PresetValues {
 	speed: number;
 	pitchShifts: boolean;
 	pitchSemitones: number;
+	effects: EffectsSettings;
 }
 
 export interface PresetStorage {
@@ -32,6 +36,7 @@ export const NIGHTCORE_PRESET: PlaybackPreset = {
 	speed: 1.35,
 	pitchShifts: true,
 	pitchSemitones: 0,
+	effects: normalizeEffects(DEFAULT_EFFECTS),
 	builtin: true,
 };
 
@@ -64,6 +69,7 @@ const parseCustomPreset = (raw: unknown, seen: Set<string>): PlaybackPreset | un
 		speed: sanitizeSpeed(record.speed),
 		pitchShifts: record.pitchShifts === true,
 		pitchSemitones: clampSemitones(typeof record.pitchSemitones === "number" ? record.pitchSemitones : 0),
+		effects: normalizeEffects(record.effects),
 	};
 };
 
@@ -125,6 +131,7 @@ export const createPresetStore = (storage: PresetStorage, key: string = PRESETS_
 				speed: sanitizeSpeed(values.speed),
 				pitchShifts: values.pitchShifts === true,
 				pitchSemitones: clampSemitones(values.pitchSemitones),
+				effects: normalizeEffects(values.effects),
 			};
 			customs.push(preset);
 			persist();
@@ -157,6 +164,7 @@ export const createPresetStore = (storage: PresetStorage, key: string = PRESETS_
 			preset.speed = sanitizeSpeed(values.speed);
 			preset.pitchShifts = values.pitchShifts === true;
 			preset.pitchSemitones = clampSemitones(values.pitchSemitones);
+			preset.effects = normalizeEffects(values.effects);
 			persist();
 			emit();
 			return true;

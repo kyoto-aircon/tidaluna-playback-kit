@@ -6,7 +6,7 @@ import { runAudioSelfTest } from "./audioSelfTest";
 import { parseConfig, serializeConfig } from "./config";
 import { exportConfig, getConfigPath, importConfig, readConfig, revealConfig, writeConfig } from "./config.native";
 import { copyReport } from "./debug";
-import { EQ_BANDS } from "./effectsSettings";
+import { describeEffects, EQ_BANDS } from "./effectsSettings";
 import { EqSliders } from "./EqSliders";
 import { formatSemitones } from "./pitch";
 import { presetStore, type PlaybackPreset } from "./presets";
@@ -20,7 +20,7 @@ const parsePositive = (raw: string): number | undefined => {
 
 const describePreset = (preset: PlaybackPreset): string => {
 	const pitch = preset.pitchShifts ? "pitch follows speed" : preset.pitchSemitones === 0 ? "pitch preserved" : `pitch ${formatSemitones(preset.pitchSemitones)} st`;
-	return `${formatSpeed(preset.speed)}× · ${pitch}${preset.builtin === true ? " · built-in" : ""}`;
+	return `${formatSpeed(preset.speed)}× · ${pitch} · ${describeEffects(preset.effects)}`;
 };
 
 const buttonRow = { display: "flex", gap: 8, marginLeft: "auto", alignItems: "center" } as const;
@@ -60,6 +60,7 @@ export const Settings = () => {
 	}, [configStatus]);
 
 	const { bounds, pitchShifts, developerMode, effects } = settings;
+	const effectsLocked = settings.presetId !== null;
 
 	const setEq = (patch: Partial<typeof effects.eq>) => speedStore.setEffects({ ...effects, eq: { ...effects.eq, ...patch } });
 	const setDelay = (patch: Partial<typeof effects.delay>) => speedStore.setEffects({ ...effects, delay: { ...effects.delay, ...patch } });
@@ -111,7 +112,7 @@ export const Settings = () => {
 
 	const overwritePreset = (preset: PlaybackPreset): void => {
 		if (!window.confirm(`Overwrite "${preset.name}" with the current speed and pitch?`)) return;
-		presetStore.update(preset.id, { speed: settings.speed, pitchShifts: settings.pitchShifts, pitchSemitones: settings.pitchSemitones });
+		presetStore.update(preset.id, { speed: settings.speed, pitchShifts: settings.pitchShifts, pitchSemitones: settings.pitchSemitones, effects: settings.effects });
 		setConfigStatus(`Updated "${preset.name}"`);
 	};
 
@@ -207,7 +208,7 @@ export const Settings = () => {
 				)}
 			</LunaSettings>
 
-			<LunaSettings title="Presets" desc="Nightcore is built in; custom presets can be renamed, updated, reordered and deleted.">
+			<LunaSettings title="Presets" desc="Presets capture speed, pitch and effects. Nightcore is fixed; custom presets can be renamed, updated, reordered and deleted.">
 				{presets.map((preset, index) => (
 					<LunaSetting key={preset.id} title={preset.name} desc={describePreset(preset)}>
 						<div style={buttonRow}>
@@ -267,28 +268,31 @@ export const Settings = () => {
 					title="Equalizer"
 					desc="8 bands, 62 Hz to 8 kHz, ±12 dB. Drag a band; double-click resets it."
 					checked={effects.eq.enabled}
+					disabled={effectsLocked}
 					onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEq({ enabled: e.target.checked })}
 				/>
 				<LunaSetting title="Bands" desc="Vertical sliders; Shift+arrow for 3 dB steps.">
-					<EqSliders eq={effects.eq} disabled={!effects.eq.enabled} onChange={(bands) => setEq({ bands })} />
+					<EqSliders eq={effects.eq} disabled={!effects.eq.enabled || effectsLocked} onChange={(bands) => setEq({ bands })} />
 				</LunaSetting>
 				<LunaButtonSetting
 					title="Flatten EQ"
 					desc="Set every band to 0 dB."
 					children="Flat"
-					disabled={!effects.eq.enabled}
+					disabled={!effects.eq.enabled || effectsLocked}
 					onClick={() => setEq({ bands: Array.from({ length: EQ_BANDS }, () => 0) })}
 				/>
 				<LunaSwitchSetting
 					title="Delay"
 					desc="Feedback delay. Mix and feedback are percentages; time in ms."
 					checked={effects.delay.enabled}
+					disabled={effectsLocked}
 					onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDelay({ enabled: e.target.checked })}
 				/>
 				<LunaTextSetting
 					title="Delay time (ms)"
 					defaultValue={String(Math.round(effects.delay.timeMs))}
 					inputProps={{ inputMode: "numeric" }}
+					disabled={effectsLocked}
 					onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
 						const value = parseNumber(e.target.value);
 						if (value !== undefined) setDelay({ timeMs: Math.max(20, Math.min(2000, value)) });
@@ -298,6 +302,7 @@ export const Settings = () => {
 					title="Delay feedback (%)"
 					defaultValue={String(Math.round(effects.delay.feedback * 100))}
 					inputProps={{ inputMode: "numeric" }}
+					disabled={effectsLocked}
 					onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
 						const value = parseNumber(e.target.value);
 						if (value !== undefined) setDelay({ feedback: Math.max(0, Math.min(90, value)) / 100 });
@@ -307,6 +312,7 @@ export const Settings = () => {
 					title="Delay mix (%)"
 					defaultValue={String(Math.round(effects.delay.mix * 100))}
 					inputProps={{ inputMode: "numeric" }}
+					disabled={effectsLocked}
 					onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
 						const value = parseNumber(e.target.value);
 						if (value !== undefined) setDelay({ mix: Math.max(0, Math.min(100, value)) / 100 });
@@ -316,12 +322,14 @@ export const Settings = () => {
 					title="Reverb"
 					desc="Generated impulse response; decay in seconds, mix in percent."
 					checked={effects.reverb.enabled}
+					disabled={effectsLocked}
 					onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReverb({ enabled: e.target.checked })}
 				/>
 				<LunaTextSetting
 					title="Reverb decay (s)"
 					defaultValue={String(effects.reverb.decay)}
 					inputProps={{ inputMode: "decimal" }}
+					disabled={effectsLocked}
 					onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
 						const value = parseNumber(e.target.value);
 						if (value !== undefined) setReverb({ decay: Math.max(0.2, Math.min(8, value)) });
@@ -331,6 +339,7 @@ export const Settings = () => {
 					title="Reverb mix (%)"
 					defaultValue={String(Math.round(effects.reverb.mix * 100))}
 					inputProps={{ inputMode: "numeric" }}
+					disabled={effectsLocked}
 					onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
 						const value = parseNumber(e.target.value);
 						if (value !== undefined) setReverb({ mix: Math.max(0, Math.min(100, value)) / 100 });

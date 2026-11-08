@@ -143,11 +143,12 @@ export const createSpeedStore = (storage: StorageLike, key: string = STORAGE_KEY
 				speed: clampSpeed(preset.speed, settings.bounds),
 				pitchShifts: semitones === 0 && preset.pitchShifts === true,
 				pitchSemitones: semitones,
+				effects: normalizeEffects(preset.effects),
 				presetId: preset.id,
 			});
 		},
 		setEffects(effects: EffectsSettings): void {
-			commit({ ...settings, effects: normalizeEffects(effects) });
+			commit({ ...settings, effects: normalizeEffects(effects), presetId: null });
 		},
 		setDeveloperMode(developerMode: boolean): void {
 			commit({ ...settings, developerMode });
