@@ -23,6 +23,7 @@ A pill beside the volume control shows the live rate and opens a log-scaled spee
 - **Presets** — save the current speed/pitch as a named preset, apply one with a click, delete custom ones. While a preset is active the playback controls are locked; choose **Custom** to edit again.
 - **Nightcore** — the built-in preset (cannot be removed): `1.35×` with pitch following speed.
 - **Theme-aware** — surfaces, text, borders, accent and font come from TIDAL's design tokens, so TidaLuna CSS themes apply.
+- **Luna settings shortcut** — the popover footer has **Luna settings**, which opens the settings page on the Plugins tab and scrolls to this plugin's card.
 - **Lossless fallback with a way back** — on the native player the popover explains why speed/pitch can't apply and offers **Use browser player** (High quality); it remembers your previous quality and shows **Restore …**.
 - **Scrubber stays honest** — at any rate other than 1× the plugin re-feeds the real position to TIDAL so audio and progress bar don't drift.
 - **Clean unload** — disabling restores `1×`, no pitch shift, and removes the UI.

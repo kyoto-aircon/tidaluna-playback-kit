@@ -340,6 +340,11 @@ export const SPEED_CSS = `
 	cursor: default;
 	text-decoration: none;
 }
+.lunaspeed-foot-actions {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
 .lunaspeed-foot {
 	display: flex;
 	align-items: center;
@@ -354,7 +359,8 @@ export const SPEED_CSS = `
 	color: var(--lunaspeed-faint);
 	font-variant-numeric: tabular-nums;
 }
-.lunaspeed-copy {
+.lunaspeed-copy,
+.lunaspeed-settings {
 	margin: 0;
 	padding: 0;
 	border: 0;
@@ -364,14 +370,16 @@ export const SPEED_CSS = `
 	color: var(--lunaspeed-muted);
 	cursor: pointer;
 }
-.lunaspeed-copy:hover {
+.lunaspeed-copy:hover,
+.lunaspeed-settings:hover {
 	color: var(--lunaspeed-fg);
 }
 .lunaspeed-copy:disabled {
 	color: var(--lunaspeed-faint);
 	cursor: default;
 }
-.lunaspeed-copy:focus-visible {
+.lunaspeed-copy:focus-visible,
+.lunaspeed-settings:focus-visible {
 	outline: 2px solid var(--lunaspeed-accent);
 	outline-offset: 2px;
 }

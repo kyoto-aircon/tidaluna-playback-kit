@@ -53,6 +53,7 @@ export interface SpeedControlOptions {
 	restoreQuality?: () => void;
 	presets?: PresetControls;
 	getPitchEngineState?: () => PitchEngineState;
+	openSettings?: () => void;
 	onOpen?: () => void;
 }
 
@@ -136,7 +137,10 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		</div>
 		<div class="lunaspeed-foot">
 			<span class="lunaspeed-version">v${PLUGIN_VERSION}</span>
-			<button class="lunaspeed-copy" type="button">Copy diagnostics</button>
+			<span class="lunaspeed-foot-actions">
+				<button class="lunaspeed-settings" type="button">Luna settings</button>
+				<button class="lunaspeed-copy" type="button">Copy diagnostics</button>
+			</span>
 		</div>`;
 
 	const readout = popover.querySelector<HTMLElement>(".lunaspeed-value") as HTMLElement;
@@ -152,6 +156,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 	const pitchSwitch = popover.querySelector<HTMLButtonElement>(".lunaspeed-switch") as HTMLButtonElement;
 	const resetButton = popover.querySelector<HTMLButtonElement>(".lunaspeed-reset") as HTMLButtonElement;
 	const copyButton = popover.querySelector<HTMLButtonElement>(".lunaspeed-copy") as HTMLButtonElement;
+	const settingsButton = popover.querySelector<HTMLButtonElement>(".lunaspeed-settings") as HTMLButtonElement;
 	const lockNote = popover.querySelector<HTMLElement>(".lunaspeed-lock") as HTMLElement;
 	const engineNote = popover.querySelector<HTMLElement>(".lunaspeed-engine") as HTMLElement;
 	const warning = popover.querySelector<HTMLElement>(".lunaspeed-warning") as HTMLElement;
@@ -477,6 +482,12 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 	saveCancel.addEventListener("click", () => {
 		saveForm.hidden = true;
 		saveInput.value = "";
+	});
+
+	settingsButton.hidden = options.openSettings === undefined;
+	settingsButton.addEventListener("click", () => {
+		options.openSettings?.();
+		close();
 	});
 
 	let copyResetTimer: ReturnType<typeof setTimeout> | undefined;

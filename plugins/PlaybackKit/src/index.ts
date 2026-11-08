@@ -176,6 +176,27 @@ const readUiPosition = (): number | null => {
 
 const timeSyncDeps = { getSpeed: () => speedStore.get().speed, isPlaying, getPosition: getActualPosition, dispatchTimeUpdate };
 
+const openLunaSettings = (): void => {
+	try {
+		const push = (redux.actions as unknown as Record<string, (payload: unknown) => unknown>)["router/PUSH"];
+		if (typeof push !== "function") throw new Error("router/PUSH is unavailable");
+		push({ pathname: "/not-found", search: "LunaSettings", replace: true });
+		debugLog("info", "opening Luna settings");
+		setTimeout(() => {
+			const tabs = [...document.querySelectorAll<HTMLElement>('[role="tab"]')];
+			const pluginsTab = tabs.find((tab) => (tab.textContent ?? "").trim() === "Plugins");
+			if (pluginsTab !== undefined && pluginsTab.getAttribute("aria-selected") !== "true") pluginsTab.click();
+			setTimeout(() => {
+				const nodes = [...document.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6,span,p,div")];
+				const target = nodes.find((node) => (node.textContent ?? "").trim() === "@kyoto-aircon/playback-kit");
+				target?.scrollIntoView({ block: "center", behavior: "smooth" });
+			}, 250);
+		}, 250);
+	} catch (err) {
+		debugLog("error", "open Luna settings failed", { error: String(err) });
+	}
+};
+
 const useBrowserPlayer = (): void => {
 	try {
 		const state = redux.store.getState() as { settings?: { quality?: { streaming?: string } } };
@@ -278,6 +299,7 @@ try {
 		restoreQuality,
 		presets: presetControls,
 		getPitchEngineState,
+		openSettings: openLunaSettings,
 		onOpen: () => {
 			const semitones = speedStore.get().pitchSemitones;
 			if (semitones !== 0) void setPitchSemitones(semitones, getMediaElements());
