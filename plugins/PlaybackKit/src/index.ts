@@ -393,7 +393,7 @@ try {
 	unloads.add(() => {
 		if (configSaveTimer !== undefined) {
 			clearTimeout(configSaveTimer);
-			void writeConfig(configSnapshot());
+			void writeConfig(configSnapshot()).catch(() => undefined);
 		}
 		clearInterval(scanTimer);
 		clearInterval(playerTimer);
