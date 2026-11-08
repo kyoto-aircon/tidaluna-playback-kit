@@ -28,6 +28,37 @@ export const unloads = new Set<LunaUnload>();
 const { trace } = Tracer("[PlaybackSpeed]");
 const SCAN_INTERVAL_MS = 1000;
 const PLAYER_POLL_MS = 1500;
+const QUALITY_KEY = "tidaluna.playback-speed.previous-quality";
+
+const readPreviousQuality = (): string | null => {
+	try {
+		return localStorage.getItem(QUALITY_KEY);
+	} catch {
+		return null;
+	}
+};
+
+const rememberQuality = (quality: string): void => {
+	try {
+		localStorage.setItem(QUALITY_KEY, quality);
+	} catch {
+		// Diagnostics still work without storage.
+	}
+};
+
+const forgetQuality = (): void => {
+	try {
+		localStorage.removeItem(QUALITY_KEY);
+	} catch {
+		// ignore
+	}
+};
+
+const setStreamingQuality = (quality: string): void => {
+	const setQuality = (redux.actions as unknown as Record<string, (payload: unknown) => unknown>)["settings/SET_STREAMING_QUALITY"];
+	if (typeof setQuality === "function") setQuality(quality);
+	else (redux.store.dispatch as (action: unknown) => unknown)({ type: "settings/SET_STREAMING_QUALITY", payload: quality });
+};
 
 const probeActivePlayer = (): unknown => {
 	const module = findModuleByProperty<{ activePlayer?: Record<string, unknown> }>(
@@ -91,12 +122,19 @@ const useBrowserPlayer = (): void => {
 			return;
 		}
 		debugLog("info", "switching streaming quality to HIGH", { from: before });
-		const setQuality = (redux.actions as unknown as Record<string, (payload: unknown) => unknown>)["settings/SET_STREAMING_QUALITY"];
-		if (typeof setQuality === "function") setQuality("HIGH");
-		else (redux.store.dispatch as (action: unknown) => unknown)({ type: "settings/SET_STREAMING_QUALITY", payload: "HIGH" });
+		if (typeof before === "string") rememberQuality(before);
+		setStreamingQuality("HIGH");
 	} catch (err) {
 		debugLog("error", "quality switch failed", { error: String(err) });
 	}
+};
+
+const restoreQuality = (): void => {
+	const previous = readPreviousQuality();
+	if (previous === null) return;
+	debugLog("info", "restoring streaming quality", { to: previous });
+	setStreamingQuality(previous);
+	forgetQuality();
 };
 
 const installDebugApi = (controller: SpeedController): void => {
@@ -146,7 +184,13 @@ try {
 		controller.apply();
 		if (getPlayerKind() === "native") applyNativeRate(settings.speed);
 	});
-	setupSpeedControl(unloads, speedStore, { getPlayerKind, subscribePlayerKind, useBrowserPlayer });
+	setupSpeedControl(unloads, speedStore, {
+		getPlayerKind,
+		subscribePlayerKind,
+		useBrowserPlayer,
+		previousQuality: readPreviousQuality,
+		restoreQuality,
+	});
 	installDebugApi(controller);
 
 	// TIDAL swaps media elements between tracks and re-renders the footer.
@@ -157,7 +201,10 @@ try {
 		const next = detectPlayerKind();
 		const previous = getPlayerKind();
 		setPlayerKind(next);
-		if (next !== previous && next === "native") applyNativeRate(speedStore.get().speed);
+		if (next !== previous && next === "native") {
+			applyNativeRate(speedStore.get().speed);
+			forgetQuality();
+		}
 	}, PLAYER_POLL_MS);
 
 	unloads.add(() => {

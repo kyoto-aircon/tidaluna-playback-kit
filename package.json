@@ -1,6 +1,6 @@
 {
 	"name": "@kyoto-aircon/tidaluna-playback-speed",
-	"version": "1.2.0",
+	"version": "1.3.0",
 	"description": "Playback speed control for TIDAL Luna — a speed pill beside the volume control with a slider, 0.05 snaps and pitch control.",
 	"author": {
 		"name": "kyoto-aircon",

@@ -29,3 +29,9 @@ Single-plugin TidaLuna repo. Build with `luna/buildPlugins`; one plugin lives in
 - `nativePlayer.ts` patches the component prototype to capture the instance and, if a `setPlaybackRate`-like member appears, drives it.
 - `nativePlayer.ts` also exposes `useBrowserPlayer` via index (dispatch `settings/SET_STREAMING_QUALITY` → `HIGH`), which moves playback to shaka where rate works.
 - Player kind is polled every 1.5 s; the popover shows a warning while `native`.
+
+## UI notes
+
+- Colours/fonts come from TIDAL design tokens (`--wave-color-solid-accent-fill`, `--wave-color-solid-contrast-fill`, `--wave-color-solid-base-brighter`, `--wave-color-opacity-contrast-fill-thin`) copied from the footer's computed style onto `.lunaspeed-ctl` and `.lunaspeed-popover`; never hardcode a theme colour.
+- The slider is a custom rail/fill/thumb with an invisible `input[type=range]` on top. Fill/thumb use `calc(8px + (100% - 16px) * var(--lunaspeed-pos))` so the fill ends at the thumb centre. While dragging, `render()` must not write the slider value or it jitters.
+- Switching to the browser player stores the previous streaming quality in `localStorage` (`tidaluna.playback-speed.previous-quality`) so the popover can restore it.

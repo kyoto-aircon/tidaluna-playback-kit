@@ -22,6 +22,8 @@ A small pill sits beside the volume control, shows the live rate, and opens a lo
 - **Slider** — click the pill for a log-scaled slider: 1× near the middle, the rest of the range still reachable at both ends.
 - **Range and snap in Settings** — minimum, maximum and step are configurable (defaults `0.05×` – `10×`, step `0.05×`).
 - **Pitch toggle** — "Pitch follows speed" is off by default, so pitch stays natural (YouTube behaviour). Turn it on for chipmunk / slow-mo.
+- **Follows the active theme** — surfaces, text, borders, accent and font are read from TIDAL's design tokens (`--wave-color-*`) and the footer's computed style, so TidaLuna CSS themes apply.
+- **Lossless fallback with a way back** — on the native player the popover explains why speed can't apply and offers **Use browser player** (switches streaming quality to High). It remembers your previous quality and shows **Restore …** so you can return to the native/lossless path.
 - **Persists** — rate, pitch mode and bounds survive restarts.
 - **Clean unload** — disabling the plugin restores `1×` and removes its UI.
 

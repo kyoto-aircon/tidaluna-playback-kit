@@ -3,7 +3,7 @@ import { StyleTag } from "@luna/lib";
 
 import { copyReport, debugLog, PLUGIN_VERSION } from "./debug";
 import type { PlayerKind } from "./playerKind";
-import { formatSpeed, positionToSpeed, speedLabel, speedToPosition, tickValues } from "./speed";
+import { formatSpeed, positionToSpeed, speedLabel, speedToPosition, tickValues, type SpeedBounds } from "./speed";
 import type { SpeedStore } from "./state";
 import { SPEED_CSS } from "./styles";
 
@@ -18,10 +18,29 @@ const clampNumber = (value: number, min: number, max: number): number => Math.mi
 
 const findButtonHost = (): HTMLElement | null => document.querySelector<HTMLElement>('[data-test="footer-player"] [class*="utilityButtons"]');
 
+const qualityName = (quality: string): string => {
+	switch (quality) {
+		case "HI_RES_LOSSLESS":
+			return "Max";
+		case "HI_RES":
+			return "Hi-Res";
+		case "LOSSLESS":
+			return "Lossless";
+		case "HIGH":
+			return "High";
+		case "LOW":
+			return "Low";
+		default:
+			return quality;
+	}
+};
+
 export interface SpeedControlOptions {
 	getPlayerKind?: () => PlayerKind;
 	subscribePlayerKind?: (listener: (kind: PlayerKind) => void) => () => void;
 	useBrowserPlayer?: () => void;
+	previousQuality?: () => string | null;
+	restoreQuality?: () => void;
 }
 
 export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, options: SpeedControlOptions = {}): void => {
@@ -66,7 +85,12 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		<div class="lunaspeed-readout">
 			<span class="lunaspeed-value">1</span><span class="lunaspeed-unit">×</span>
 		</div>
-		<input class="lunaspeed-slider" type="range" min="0" max="${SLIDER_RESOLUTION}" step="1" aria-label="Playback speed slider" />
+		<div class="lunaspeed-slider">
+			<div class="lunaspeed-slider-rail"></div>
+			<div class="lunaspeed-slider-fill"></div>
+			<div class="lunaspeed-slider-thumb"></div>
+			<input class="lunaspeed-range" type="range" min="0" max="${SLIDER_RESOLUTION}" step="1" aria-label="Playback speed slider" />
+		</div>
 		<div class="lunaspeed-ticks"></div>
 		<div class="lunaspeed-switch-row">
 			<span class="lunaspeed-switch-label">Pitch follows speed</span>
@@ -77,22 +101,58 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 			<span class="lunaspeed-warning-text">TIDAL ignores playback speed here. Speed needs the browser player.</span>
 			<button class="lunaspeed-warning-action" type="button">Use browser player</button>
 		</div>
+		<div class="lunaspeed-quality" hidden>
+			<span class="lunaspeed-quality-text">TIDAL is on High quality so speed can work.</span>
+			<button class="lunaspeed-quality-action" type="button">Restore lossless</button>
+		</div>
 		<div class="lunaspeed-foot">
 			<span class="lunaspeed-version">v${PLUGIN_VERSION}</span>
 			<button class="lunaspeed-copy" type="button">Copy diagnostics</button>
 		</div>`;
 
 	const readout = popover.querySelector<HTMLElement>(".lunaspeed-value") as HTMLElement;
-	const slider = popover.querySelector<HTMLInputElement>(".lunaspeed-slider") as HTMLInputElement;
+	const slider = popover.querySelector<HTMLElement>(".lunaspeed-slider") as HTMLElement;
+	const range = popover.querySelector<HTMLInputElement>(".lunaspeed-range") as HTMLInputElement;
 	const ticks = popover.querySelector<HTMLElement>(".lunaspeed-ticks") as HTMLElement;
 	const pitchSwitch = popover.querySelector<HTMLButtonElement>(".lunaspeed-switch") as HTMLButtonElement;
 	const resetButton = popover.querySelector<HTMLButtonElement>(".lunaspeed-reset") as HTMLButtonElement;
 	const copyButton = popover.querySelector<HTMLButtonElement>(".lunaspeed-copy") as HTMLButtonElement;
 	const warning = popover.querySelector<HTMLElement>(".lunaspeed-warning") as HTMLElement;
 	const warningAction = popover.querySelector<HTMLButtonElement>(".lunaspeed-warning-action") as HTMLButtonElement;
+	const quality = popover.querySelector<HTMLElement>(".lunaspeed-quality") as HTMLElement;
+	const qualityAction = popover.querySelector<HTMLButtonElement>(".lunaspeed-quality-action") as HTMLButtonElement;
 
 	let ticksKey = "";
 	let isOpen = false;
+	let dragging = false;
+
+	/** TIDAL ships design tokens (themes override them); copy them onto our detached popover. */
+	const applyTheme = (): void => {
+		const reference = document.querySelector<HTMLElement>('[data-test="footer-player"]') ?? document.documentElement;
+		const styles = getComputedStyle(reference);
+		const token = (name: string): string => styles.getPropertyValue(name).trim();
+		const accent = token("--wave-color-solid-accent-fill");
+		const fg = token("--wave-color-solid-contrast-fill");
+		const surface = token("--wave-color-solid-base-brighter");
+		const border = token("--wave-color-opacity-contrast-fill-thin");
+		for (const element of [control, popover]) {
+			if (accent !== "") element.style.setProperty("--lunaspeed-accent", accent);
+			if (fg !== "") element.style.setProperty("--lunaspeed-fg", fg);
+			if (surface !== "") element.style.setProperty("--lunaspeed-surface", surface);
+			if (border !== "") element.style.setProperty("--lunaspeed-border", border);
+			if (styles.fontFamily !== "") element.style.fontFamily = styles.fontFamily;
+		}
+	};
+
+	const setSliderVisual = (position: number): void => {
+		slider.style.setProperty("--lunaspeed-pos", String(clampNumber(position, 0, 1)));
+	};
+
+	const syncSlider = (speed: number, bounds: SpeedBounds): void => {
+		const position = speedToPosition(speed, bounds);
+		range.value = String(Math.round(position * SLIDER_RESOLUTION));
+		setSliderVisual(position);
+	};
 
 	const renderTicks = (): void => {
 		const { bounds } = store.get();
@@ -110,6 +170,14 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		);
 	};
 
+	const renderPlayerState = (kind: PlayerKind): void => {
+		warning.hidden = kind !== "native";
+		const previous = options.previousQuality?.() ?? null;
+		const showQuality = kind !== "native" && previous !== null;
+		quality.hidden = !showQuality;
+		if (showQuality && previous !== null) qualityAction.textContent = `Restore ${qualityName(previous)}`;
+	};
+
 	const render = (): void => {
 		const { speed, pitchShifts, bounds } = store.get();
 		const label = speedLabel(speed);
@@ -122,10 +190,8 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		faster.title = `+${formatSpeed(bounds.step)}×`;
 
 		readout.textContent = formatSpeed(speed);
-		const position = speedToPosition(speed, bounds);
-		slider.value = String(Math.round(position * SLIDER_RESOLUTION));
-		slider.style.setProperty("--lunaspeed-pos", `${(position * 100).toFixed(2)}%`);
-		slider.setAttribute("aria-valuetext", label);
+		if (!dragging) syncSlider(speed, bounds);
+		range.setAttribute("aria-valuetext", label);
 		pitchSwitch.setAttribute("aria-checked", String(pitchShifts));
 		renderTicks();
 		if (isOpen) positionPopover();
@@ -170,15 +236,17 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 
 	const open = (): void => {
 		if (isOpen) return;
-		debugLog("debug", "popover open");
 		isOpen = true;
+		applyTheme();
 		popover.hidden = false;
 		pill.dataset.open = "true";
 		render();
+		renderPlayerState(options.getPlayerKind?.() ?? "unknown");
 		positionPopover();
 		document.addEventListener("pointerdown", onDocumentPointerDown, true);
 		document.addEventListener("keydown", onDocumentKeyDown, true);
 		window.addEventListener("resize", onResize);
+		debugLog("debug", "popover open");
 	};
 
 	const close = (): void => {
@@ -201,6 +269,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 			const volume = host.querySelector<HTMLElement>('[class*="sliderContainer"]');
 			if (volume !== null && volume.parentElement === host) host.insertBefore(control, volume);
 			else host.appendChild(control);
+			applyTheme();
 		}
 		if (!popover.isConnected) document.body.appendChild(popover);
 	};
@@ -209,8 +278,22 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 	faster.addEventListener("click", () => store.step(1));
 	pill.addEventListener("click", toggle);
 
-	slider.addEventListener("input", () => {
-		const position = Number(slider.value) / SLIDER_RESOLUTION;
+	range.addEventListener("pointerdown", () => {
+		dragging = true;
+	});
+	const endDrag = (): void => {
+		if (!dragging) return;
+		dragging = false;
+		const { speed, bounds } = store.get();
+		syncSlider(speed, bounds);
+	};
+	range.addEventListener("change", endDrag);
+	window.addEventListener("pointerup", endDrag);
+	window.addEventListener("pointercancel", endDrag);
+
+	range.addEventListener("input", () => {
+		const position = Number(range.value) / SLIDER_RESOLUTION;
+		setSliderVisual(position);
 		store.setSpeed(positionToSpeed(position, store.get().bounds));
 	});
 
@@ -241,16 +324,12 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		}, 1800);
 	});
 
-	const renderWarning = (kind: PlayerKind): void => {
-		warning.hidden = kind !== "native";
-	};
-
 	let switchTimer: ReturnType<typeof setTimeout> | undefined;
 	warningAction.addEventListener("click", () => {
 		if (options.useBrowserPlayer === undefined) return;
 		if (switchTimer !== undefined) clearTimeout(switchTimer);
 		warningAction.disabled = true;
-		warningAction.textContent = "Switching\u2026";
+		warningAction.textContent = "Switching…";
 		options.useBrowserPlayer();
 		debugLog("info", "requested browser player from warning");
 		switchTimer = setTimeout(() => {
@@ -259,11 +338,19 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		}, 2500);
 	});
 
-	renderWarning(options.getPlayerKind?.() ?? "unknown");
-	const unsubscribeKind = options.subscribePlayerKind?.(renderWarning);
+	qualityAction.addEventListener("click", () => {
+		if (options.restoreQuality === undefined) return;
+		options.restoreQuality();
+		quality.hidden = true;
+		debugLog("info", "restored original streaming quality");
+	});
+
+	renderPlayerState(options.getPlayerKind?.() ?? "unknown");
+	const unsubscribeKind = options.subscribePlayerKind?.(renderPlayerState);
 	if (unsubscribeKind !== undefined) unloads.add(unsubscribeKind);
 
 	ensureMounted();
+	applyTheme();
 	render();
 
 	unloads.add(store.subscribe(render));
@@ -273,6 +360,8 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 
 	unloads.add(() => {
 		clearInterval(mountTimer);
+		window.removeEventListener("pointerup", endDrag);
+		window.removeEventListener("pointercancel", endDrag);
 		if (copyResetTimer !== undefined) clearTimeout(copyResetTimer);
 		if (switchTimer !== undefined) clearTimeout(switchTimer);
 		close();

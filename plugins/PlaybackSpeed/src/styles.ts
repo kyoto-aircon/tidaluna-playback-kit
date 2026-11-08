@@ -1,12 +1,24 @@
 export const SPEED_CSS = `
+.lunaspeed-ctl,
+.lunaspeed-popover {
+	--lunaspeed-accent: var(--wave-color-solid-accent-fill, #3fe);
+	--lunaspeed-fg: var(--wave-color-solid-contrast-fill, #fff);
+	--lunaspeed-surface: var(--wave-color-solid-base-brighter, #242429);
+	--lunaspeed-border: var(--wave-color-opacity-contrast-fill-thin, rgba(255, 255, 255, 0.2));
+	--lunaspeed-muted: color-mix(in srgb, var(--lunaspeed-fg) 58%, transparent);
+	--lunaspeed-faint: color-mix(in srgb, var(--lunaspeed-fg) 38%, transparent);
+	--lunaspeed-hover: color-mix(in srgb, var(--lunaspeed-fg) 8%, transparent);
+}
+
 .lunaspeed-ctl {
 	display: inline-flex;
 	align-items: center;
 	height: 34px;
 	border-radius: 9px;
-	background: rgba(255, 255, 255, 0.05);
-	border: 1px solid rgba(255, 255, 255, 0.09);
+	background: var(--lunaspeed-hover);
+	border: 1px solid var(--lunaspeed-border);
 	font-family: inherit;
+	color: var(--lunaspeed-fg);
 }
 .lunaspeed-ctl button {
 	margin: 0;
@@ -14,6 +26,7 @@ export const SPEED_CSS = `
 	border: 0;
 	background: transparent;
 	font-family: inherit;
+	color: inherit;
 	cursor: pointer;
 	-webkit-appearance: none;
 	appearance: none;
@@ -24,17 +37,17 @@ export const SPEED_CSS = `
 	display: grid;
 	place-items: center;
 	border-radius: 8px;
-	color: rgba(255, 255, 255, 0.55);
+	color: var(--lunaspeed-muted);
 	font-size: 16px;
 	font-weight: 500;
 	line-height: 1;
 }
 .lunaspeed-step:hover {
-	background: rgba(255, 255, 255, 0.09);
-	color: #fff;
+	background: var(--lunaspeed-hover);
+	color: var(--lunaspeed-fg);
 }
 .lunaspeed-step:focus-visible {
-	outline: 2px solid #4de3c0;
+	outline: 2px solid var(--lunaspeed-accent);
 	outline-offset: -3px;
 }
 .lunaspeed-pill {
@@ -47,26 +60,26 @@ export const SPEED_CSS = `
 	padding: 0 8px;
 	border-radius: 7px;
 	border: 1px solid transparent;
-	color: #e8e9ec;
+	color: var(--lunaspeed-fg);
 	font-size: 13px;
 	font-weight: 650;
 	letter-spacing: 0.01em;
 	font-variant-numeric: tabular-nums;
 }
 .lunaspeed-pill:hover {
-	background: rgba(255, 255, 255, 0.08);
+	background: var(--lunaspeed-hover);
 }
 .lunaspeed-pill:focus-visible {
-	outline: 2px solid #4de3c0;
+	outline: 2px solid var(--lunaspeed-accent);
 	outline-offset: -3px;
 }
 .lunaspeed-pill[data-active="true"] {
-	color: #4de3c0;
-	background: rgba(77, 227, 192, 0.14);
+	color: var(--lunaspeed-accent);
+	background: color-mix(in srgb, var(--lunaspeed-accent) 14%, transparent);
 }
 .lunaspeed-pill[data-open="true"] {
-	background: rgba(255, 255, 255, 0.1);
-	border-color: rgba(255, 255, 255, 0.16);
+	background: var(--lunaspeed-hover);
+	border-color: var(--lunaspeed-border);
 }
 .lunaspeed-gauge {
 	width: 13px;
@@ -86,11 +99,11 @@ export const SPEED_CSS = `
 	box-sizing: border-box;
 	padding: 18px;
 	border-radius: 16px;
-	border: 1px solid rgba(255, 255, 255, 0.09);
-	background: #191a1e;
-	color: #f2f3f5;
+	border: 1px solid var(--lunaspeed-border);
+	background: var(--lunaspeed-surface);
+	color: var(--lunaspeed-fg);
 	font-family: inherit;
-	box-shadow: 0 30px 74px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+	box-shadow: 0 30px 74px rgba(0, 0, 0, 0.55), 0 1px 0 color-mix(in srgb, var(--lunaspeed-fg) 5%, transparent) inset;
 }
 .lunaspeed-popover[hidden] {
 	display: none;
@@ -105,7 +118,7 @@ export const SPEED_CSS = `
 	font-size: 11px;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
-	color: #9a9aa4;
+	color: var(--lunaspeed-muted);
 	font-weight: 650;
 }
 .lunaspeed-reset {
@@ -115,11 +128,11 @@ export const SPEED_CSS = `
 	background: transparent;
 	font-family: inherit;
 	font-size: 12px;
-	color: #6d6d78;
+	color: var(--lunaspeed-faint);
 	cursor: pointer;
 }
 .lunaspeed-reset:hover {
-	color: #c9cad0;
+	color: var(--lunaspeed-fg);
 }
 .lunaspeed-readout {
 	display: flex;
@@ -132,49 +145,65 @@ export const SPEED_CSS = `
 	line-height: 0.95;
 	font-weight: 650;
 	letter-spacing: -0.035em;
-	color: #4de3c0;
+	color: var(--lunaspeed-accent);
 	font-variant-numeric: tabular-nums;
 }
 .lunaspeed-unit {
 	font-size: 23px;
 	line-height: 1.1;
-	color: #4de3c0;
+	color: var(--lunaspeed-accent);
 	opacity: 0.85;
 	font-weight: 500;
 }
+
 .lunaspeed-slider {
-	-webkit-appearance: none;
-	appearance: none;
-	display: block;
-	width: 100%;
+	position: relative;
 	height: 26px;
-	margin: 0;
-	padding: 0;
-	background: transparent;
-	cursor: pointer;
+	margin: 0 2px;
 }
-.lunaspeed-slider::-webkit-slider-runnable-track {
+.lunaspeed-slider-rail,
+.lunaspeed-slider-fill {
+	position: absolute;
+	left: 0;
+	top: 50%;
+	transform: translateY(-50%);
 	height: 5px;
 	border-radius: 999px;
-	background: linear-gradient(
-		90deg,
-		#4de3c0 0%,
-		#4de3c0 var(--lunaspeed-pos, 0%),
-		rgba(255, 255, 255, 0.12) var(--lunaspeed-pos, 0%),
-		rgba(255, 255, 255, 0.12) 100%
-	);
 }
-.lunaspeed-slider::-webkit-slider-thumb {
-	-webkit-appearance: none;
+.lunaspeed-slider-rail {
+	right: 0;
+	background: color-mix(in srgb, var(--lunaspeed-fg) 14%, transparent);
+}
+.lunaspeed-slider-fill {
+	width: calc(8px + (100% - 16px) * var(--lunaspeed-pos, 0));
+	background: var(--lunaspeed-accent);
+}
+.lunaspeed-slider-thumb {
+	position: absolute;
+	left: calc(8px + (100% - 16px) * var(--lunaspeed-pos, 0));
+	top: 50%;
 	width: 16px;
 	height: 16px;
-	margin-top: -5.5px;
+	transform: translate(-50%, -50%);
 	border-radius: 50%;
-	background: #fff;
-	box-shadow: 0 0 0 4px rgba(77, 227, 192, 0.18), 0 2px 6px rgba(0, 0, 0, 0.5);
+	background: var(--lunaspeed-fg);
+	box-shadow: 0 0 0 4px color-mix(in srgb, var(--lunaspeed-accent) 22%, transparent), 0 2px 6px rgba(0, 0, 0, 0.45);
+	pointer-events: none;
 }
-.lunaspeed-slider:focus-visible {
-	outline: 2px solid #4de3c0;
+.lunaspeed-range {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	padding: 0;
+	opacity: 0;
+	cursor: pointer;
+	-webkit-appearance: none;
+	appearance: none;
+}
+.lunaspeed-slider:focus-within {
+	outline: 2px solid var(--lunaspeed-accent);
 	outline-offset: 2px;
 	border-radius: 999px;
 }
@@ -191,19 +220,19 @@ export const SPEED_CSS = `
 	top: 50%;
 	height: 1px;
 	margin-top: -0.5px;
-	background: rgba(255, 255, 255, 0.16);
+	background: color-mix(in srgb, var(--lunaspeed-fg) 16%, transparent);
 }
 .lunaspeed-tick {
 	position: absolute;
 	top: 50%;
 	transform: translate(-50%, -50%);
 	font-size: 10px;
-	color: #6d6d78;
+	color: var(--lunaspeed-faint);
 	font-variant-numeric: tabular-nums;
-	background: #191a1e;
+	background: var(--lunaspeed-surface);
 	padding: 0 6px;
 	line-height: 1.1;
-	box-shadow: 0 0 6px 3px #191a1e;
+	box-shadow: 0 0 6px 3px var(--lunaspeed-surface);
 }
 .lunaspeed-tick:first-child {
 	transform: translate(0, -50%);
@@ -217,13 +246,13 @@ export const SPEED_CSS = `
 	gap: 12px;
 	margin-top: 12px;
 	padding-top: 15px;
-	border-top: 1px solid rgba(255, 255, 255, 0.09);
+	border-top: 1px solid var(--lunaspeed-border);
 }
 .lunaspeed-switch-label {
 	flex: 1;
 	font-size: 13px;
 	font-weight: 600;
-	color: #f2f3f5;
+	color: var(--lunaspeed-fg);
 }
 .lunaspeed-switch {
 	position: relative;
@@ -233,13 +262,13 @@ export const SPEED_CSS = `
 	padding: 0;
 	border: 0;
 	border-radius: 999px;
-	background: rgba(255, 255, 255, 0.16);
+	background: color-mix(in srgb, var(--lunaspeed-fg) 16%, transparent);
 	cursor: pointer;
 	-webkit-appearance: none;
 	appearance: none;
 }
 .lunaspeed-switch[aria-checked="true"] {
-	background: #4de3c0;
+	background: var(--lunaspeed-accent);
 }
 .lunaspeed-switch::after {
 	content: "";
@@ -249,7 +278,7 @@ export const SPEED_CSS = `
 	width: 16px;
 	height: 16px;
 	border-radius: 50%;
-	background: #fff;
+	background: var(--lunaspeed-fg);
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 	transition: left 0.15s ease;
 }
@@ -257,8 +286,59 @@ export const SPEED_CSS = `
 	left: 19px;
 }
 .lunaspeed-switch:focus-visible {
-	outline: 2px solid #4de3c0;
+	outline: 2px solid var(--lunaspeed-accent);
 	outline-offset: 2px;
+}
+.lunaspeed-warning,
+.lunaspeed-quality {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-top: 12px;
+	padding: 10px 12px;
+	border-radius: 10px;
+	border: 1px solid color-mix(in srgb, var(--lunaspeed-fg) 16%, transparent);
+	background: color-mix(in srgb, var(--lunaspeed-fg) 6%, transparent);
+}
+.lunaspeed-warning[hidden],
+.lunaspeed-quality[hidden] {
+	display: none;
+}
+.lunaspeed-warning-title {
+	font-size: 12px;
+	font-weight: 650;
+	color: var(--lunaspeed-fg);
+}
+.lunaspeed-warning-text,
+.lunaspeed-quality-text {
+	font-size: 11px;
+	line-height: 1.45;
+	color: var(--lunaspeed-muted);
+}
+.lunaspeed-warning-action,
+.lunaspeed-quality-action {
+	align-self: flex-start;
+	margin: 4px 0 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: var(--lunaspeed-accent);
+	font-family: inherit;
+	font-size: 11px;
+	font-weight: 600;
+	cursor: pointer;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+.lunaspeed-warning-action:hover,
+.lunaspeed-quality-action:hover {
+	filter: brightness(1.2);
+}
+.lunaspeed-warning-action:disabled,
+.lunaspeed-quality-action:disabled {
+	color: var(--lunaspeed-faint);
+	cursor: default;
+	text-decoration: none;
 }
 .lunaspeed-foot {
 	display: flex;
@@ -267,55 +347,11 @@ export const SPEED_CSS = `
 	gap: 12px;
 	margin-top: 10px;
 	padding-top: 10px;
-	border-top: 1px solid rgba(255, 255, 255, 0.09);
-}
-.lunaspeed-warning {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-	margin-top: 12px;
-	padding: 10px 12px;
-	border-radius: 10px;
-	border: 1px solid rgba(255, 178, 92, 0.35);
-	background: rgba(255, 178, 92, 0.1);
-}
-.lunaspeed-warning[hidden] {
-	display: none;
-}
-.lunaspeed-warning-title {
-	font-size: 12px;
-	font-weight: 650;
-	color: #ffc477;
-}
-.lunaspeed-warning-text {
-	font-size: 11px;
-	line-height: 1.45;
-	color: #c9b39c;
-}
-.lunaspeed-warning-action {
-	align-self: flex-start;
-	margin: 4px 0 0;
-	padding: 0;
-	border: 0;
-	background: transparent;
-	color: #ffc477;
-	font-family: inherit;
-	font-size: 11px;
-	font-weight: 600;
-	cursor: pointer;
-	text-decoration: underline;
-	text-underline-offset: 2px;
-}
-.lunaspeed-warning-action:hover {
-	color: #ffd9a8;
-}
-.lunaspeed-warning-action:disabled {
-	color: #8a7a68;
-	cursor: default;
+	border-top: 1px solid var(--lunaspeed-border);
 }
 .lunaspeed-version {
 	font-size: 10px;
-	color: #4d4d57;
+	color: var(--lunaspeed-faint);
 	font-variant-numeric: tabular-nums;
 }
 .lunaspeed-copy {
@@ -325,18 +361,18 @@ export const SPEED_CSS = `
 	background: transparent;
 	font-family: inherit;
 	font-size: 11px;
-	color: #9a9aa4;
+	color: var(--lunaspeed-muted);
 	cursor: pointer;
 }
 .lunaspeed-copy:hover {
-	color: #fff;
+	color: var(--lunaspeed-fg);
 }
 .lunaspeed-copy:disabled {
-	color: #6d6d78;
+	color: var(--lunaspeed-faint);
 	cursor: default;
 }
 .lunaspeed-copy:focus-visible {
-	outline: 2px solid #4de3c0;
+	outline: 2px solid var(--lunaspeed-accent);
 	outline-offset: 2px;
 }
 `;
