@@ -247,8 +247,6 @@ export const SPEED_CSS = `
 	align-items: center;
 	gap: 12px;
 	margin-top: 12px;
-	padding-top: 15px;
-	border-top: 1px solid var(--lunaspeed-border);
 }
 .lunaspeed-switch-label {
 	flex: 1;
