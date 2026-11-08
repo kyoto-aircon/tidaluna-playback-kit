@@ -28,6 +28,6 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 
 ## UI notes
 
-- Colours/fonts come from TIDAL design tokens (`--wave-color-solid-accent-fill`, `-contrast-fill`, `-base-brighter`, `-opacity-contrast-fill-thin`) copied from the footer's computed style onto `.lunaspeed-ctl` and `.lunaspeed-popover`; never hardcode a theme colour.
+- The popover is mounted inside the TIDAL app root (`#wimp`, falling back to body) so design tokens and fonts inherit live. CSS only references `--wave-color-*` tokens with neutral fallbacks (`currentColor`, `Canvas`, `color-mix`); never hardcode brand colours.
 - Slider is a custom rail/fill/thumb with an invisible `input[type=range]`. Fill/thumb use `calc(8px + (100% - 16px) * var(--lunaspeed-pos))` so the fill ends at the thumb centre. While dragging, `render()` must not write the slider value.
 - Scrubber math: TIDAL uses `latestCurrentTime + |now - sync|/1000` (1× assumption); `timeSync.ts` dispatches `playbackControls/TIME_UPDATE` every 100 ms at other rates.

@@ -169,24 +169,6 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 	let isOpen = false;
 	let dragging = false;
 
-	/** TIDAL ships design tokens (themes override them); copy them onto our detached popover. */
-	const applyTheme = (): void => {
-		const reference = document.querySelector<HTMLElement>('[data-test="footer-player"]') ?? document.documentElement;
-		const styles = getComputedStyle(reference);
-		const token = (name: string): string => styles.getPropertyValue(name).trim();
-		const accent = token("--wave-color-solid-accent-fill");
-		const fg = token("--wave-color-solid-contrast-fill");
-		const surface = token("--wave-color-solid-base-brighter");
-		const border = token("--wave-color-opacity-contrast-fill-thin");
-		for (const element of [control, popover]) {
-			if (accent !== "") element.style.setProperty("--lunaspeed-accent", accent);
-			if (fg !== "") element.style.setProperty("--lunaspeed-fg", fg);
-			if (surface !== "") element.style.setProperty("--lunaspeed-surface", surface);
-			if (border !== "") element.style.setProperty("--lunaspeed-border", border);
-			if (styles.fontFamily !== "") element.style.fontFamily = styles.fontFamily;
-		}
-	};
-
 	const setSliderVisual = (position: number): void => {
 		slider.style.setProperty("--lunaspeed-pos", String(clampNumber(position, 0, 1)));
 	};
@@ -378,7 +360,6 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 	const open = (): void => {
 		if (isOpen) return;
 		isOpen = true;
-		applyTheme();
 		popover.hidden = false;
 		pill.dataset.open = "true";
 		render();
@@ -412,9 +393,10 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 			const volume = host.querySelector<HTMLElement>('[class*="sliderContainer"]');
 			if (volume !== null && volume.parentElement === host) host.insertBefore(control, volume);
 			else host.appendChild(control);
-			applyTheme();
 		}
-		if (!popover.isConnected) document.body.appendChild(popover);
+		// Stay inside the themed app root so TIDAL/theme tokens and fonts inherit live.
+		const root = document.getElementById("wimp") ?? document.body;
+		if (popover.parentElement !== root) root.appendChild(popover);
 	};
 
 	slower.addEventListener("click", () => store.step(-1));
@@ -530,7 +512,6 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 	if (unsubscribeKind !== undefined) unloads.add(unsubscribeKind);
 
 	ensureMounted();
-	applyTheme();
 	render();
 
 	unloads.add(store.subscribe(render));

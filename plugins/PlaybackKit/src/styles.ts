@@ -1,10 +1,10 @@
 export const SPEED_CSS = `
 .lunaspeed-ctl,
 .lunaspeed-popover {
-	--lunaspeed-accent: var(--wave-color-solid-accent-fill, #3fe);
-	--lunaspeed-fg: var(--wave-color-solid-contrast-fill, #fff);
-	--lunaspeed-surface: var(--wave-color-solid-base-brighter, #242429);
-	--lunaspeed-border: var(--wave-color-opacity-contrast-fill-thin, rgba(255, 255, 255, 0.2));
+	--lunaspeed-accent: var(--wave-color-solid-accent-fill, currentColor);
+	--lunaspeed-fg: var(--wave-color-solid-contrast-fill, currentColor);
+	--lunaspeed-surface: var(--wave-color-solid-base-brighter, Canvas);
+	--lunaspeed-border: var(--wave-color-opacity-contrast-fill-thin, color-mix(in srgb, currentColor 20%, transparent));
 	--lunaspeed-muted: color-mix(in srgb, var(--lunaspeed-fg) 58%, transparent);
 	--lunaspeed-faint: color-mix(in srgb, var(--lunaspeed-fg) 38%, transparent);
 	--lunaspeed-hover: color-mix(in srgb, var(--lunaspeed-fg) 8%, transparent);
@@ -522,7 +522,7 @@ export const SPEED_CSS = `
 	display: none;
 }
 .lunaspeed-engine[data-status="unavailable"] {
-	color: #ff9b9b;
+	color: var(--wave-color-text-danger, currentColor);
 }
 .lunaspeed-slider[data-locked="true"] {
 	opacity: 0.45;
