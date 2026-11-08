@@ -4,6 +4,7 @@ import { redux } from "@luna/lib";
 
 import { parseConfig, serializeConfig } from "./config";
 import { getConfigPath, readConfig, writeConfig } from "./config.native";
+import { exposeAudioEngine, getStatus as getAudioEngineStatus, hideAudioEngine } from "./audioEngine";
 import { setupSpeedControl } from "./control";
 import {
 	buildReport,
@@ -292,6 +293,7 @@ const installDebugApi = (controller: SpeedController): void => {
 		setVerbose,
 		selectors: snapshotSelectors,
 		playerKind: getPlayerKind,
+		audioEngine: getAudioEngineStatus,
 		native: probeNativeComponent,
 		store: speedStore,
 		controller,
@@ -317,6 +319,7 @@ try {
 		nativeInstance: hasNativeInstance(),
 		speed: speedStore.get().speed,
 		track: probeCurrentTrack(),
+		audioEngine: getAudioEngineStatus(),
 		pitchSemitones: speedStore.get().pitchSemitones,
 		pitchEngine: getPitchEngineState(),
 		presetId: speedStore.get().presetId,
@@ -333,6 +336,9 @@ try {
 		tidal: probeActivePlayer(),
 		native: probeNativeComponent(),
 	});
+
+	const audioEngine = exposeAudioEngine();
+	unloads.add(() => hideAudioEngine(audioEngine));
 
 	const controller = new SpeedController(getMediaElements, speedStore);
 	controller.start();

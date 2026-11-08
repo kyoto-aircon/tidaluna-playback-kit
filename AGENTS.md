@@ -42,6 +42,12 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 - Autosave is debounced 300 ms on both stores; imported/reloaded configs are written back. The built-in nightcore preset is implicit and must not be serialized.
 - `presetStore` supports rename / update / move / replace; the built-in cannot be edited, moved or deleted.
 - Native modules are sandboxed: `fs` and `electron` are not whitelisted, so Luna prompts for trust per module (cached in `luna-trust-store.enc`). Require them lazily inside functions so registration never prompts; deny means fall back to local storage. `path` is whitelisted; `process.env` is a frozen subset (APPDATA/HOME/USERPROFILE, no XDG_CONFIG_HOME) and `process.resourcesPath` is available, which is how the userData folder is derived without `electron.app`.
+
+## Audio engine
+
+- `audioEngine.ts` is the single graph owner: AudioContext, `chainIn -> nodes -> chainOut -> destination`, an AnalyserNode tap, and one MediaElementSource per element. Exposed as `window.__playbackKitAudio` (version 1); a future effects plugin inserts nodes and must never connect node outputs or create its own source.
+- `pitchEngine.ts` is just a node in that chain (inserted at index 0); its worklet loads through `loadWorklet`.
+- `audioSelfTest.ts` (dev mode only) attaches the playing element, measures captured RMS for ~1.2 s and explains silence (DRM / routed elsewhere / paused / context suspended). Attaching is permanent per element until TIDAL restarts.
 - Slider feel: while dragging, `--lunaspeed-pos` follows the raw pointer position (smooth) while the stored speed snaps to the configured step. On release the thumb animates to the snapped position via the `[data-settling]` transition; `render()` must not write the slider while `dragging` is true.
 
 ## Developer mode

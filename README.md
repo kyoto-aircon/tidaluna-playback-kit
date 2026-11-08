@@ -25,6 +25,7 @@ A pill beside the volume control shows the live rate and opens a log-scaled spee
 - **Presets** — save the current speed/pitch as a named preset, apply one with a click, delete custom ones. While a preset is active the playback controls are locked; choose **Custom** to edit again.
 - **Preset editing** — rename, overwrite from the current state, and reorder custom presets in Luna settings; Nightcore stays fixed at the top and cannot be edited or removed.
 - **Config file** — settings and presets live in a versioned JSON file inside TIDAL's userData folder (`playback-kit/config.json`), editable outside Luna and backed up by copying. Settings autosave 300 ms after changes; **Reload** re-reads the file, **Import…/Export…** just replace/copy it through a file dialog.
+- **Developer mode** — off by default: no log buffer, no Copy diagnostics buttons, no test tools. When on it adds **Audio engine self-test** (attach, measure RMS, explain silence/blocking).
 - **Nightcore** — the built-in preset (cannot be removed): `1.35×` with pitch following speed.
 - **Theme-aware** — the popover mounts inside TIDAL's app root (`#wimp`) and every colour/font comes from TIDAL's own design tokens and inherited styles. No hardcoded palette or px font sizes: colours, fonts and the rem type scale follow TIDAL, so token/theme changes propagate.
 - **Luna settings shortcut** — the popover footer has **Luna settings**, which opens the settings page on the Plugins tab and scrolls to this plugin's card.
@@ -52,6 +53,26 @@ Enable **Developer mode** in Luna settings first; then open the pill → **Copy 
 - the last 500 log lines
 
 DevTools exposes `window.__playbackSpeed` (`logs()`, `report()`, `copy()`, `selectors()`, `playerKind()`); console entries use the `[PlaybackKit]` prefix.
+
+## Audio engine (for effects plugins)
+
+Playback Kit owns the renderer's only MediaElementSource and exposes a small graph API at `window.__playbackKitAudio`:
+
+```ts
+{
+  version: 1,
+  ensureContext(): Promise<AudioContext>,
+  loadWorklet(source: string, name: string): Promise<void>,
+  attach(element: HTMLMediaElement): Promise<void>,
+  insert(node: AudioNode, index?: number): Promise<void>,
+  remove(node: AudioNode): Promise<boolean>,
+  list(): AudioNode[],
+  status(): { context, sampleRate, sources, nodes },
+  measureRms(ms?): Promise<{ rms, peak, silent, samples, durationMs }>
+}
+```
+
+A separate effects plugin should depend on Playback Kit and insert processor nodes (delay, convolver, EQ, …) into that chain. Rules: use the shared context from `ensureContext()`, never connect a node's output yourself (the engine rebuilds the chain), and never create a second MediaElementSource. Without Playback Kit there is no engine, so effects should show an "install Playback Kit" notice instead of attaching.
 
 ## Config file
 

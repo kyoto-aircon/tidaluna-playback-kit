@@ -2,6 +2,7 @@ import React from "react";
 
 import { LunaButton, LunaButtonSetting, LunaSetting, LunaSettings, LunaSwitchSetting, LunaTextSetting } from "@luna/ui";
 
+import { runAudioSelfTest } from "./audioSelfTest";
 import { parseConfig, serializeConfig } from "./config";
 import { exportConfig, getConfigPath, importConfig, readConfig, revealConfig, writeConfig } from "./config.native";
 import { copyReport } from "./debug";
@@ -29,6 +30,8 @@ export const Settings = () => {
 	const [configPath, setConfigPath] = React.useState("Resolving…");
 	const [configStatus, setConfigStatus] = React.useState("");
 	const [renaming, setRenaming] = React.useState<{ id: string; name: string; value: string } | null>(null);
+	const [testing, setTesting] = React.useState(false);
+	const [selfTestStatus, setSelfTestStatus] = React.useState("Attaches the playing element, measures captured RMS and reports blocked/silent reasons. May silence playback if capture fails; restart TIDAL to undo.");
 
 	React.useEffect(() => speedStore.subscribe(setSettings), []);
 	React.useEffect(
@@ -154,6 +157,32 @@ export const Settings = () => {
 					onChange={(e: React.ChangeEvent<HTMLInputElement>) => speedStore.setDeveloperMode(e.target.checked)}
 				/>
 				<LunaButtonSetting title="Reset speed" desc="Return to 1.00× with no pitch change." children="Reset" onClick={() => speedStore.reset()} />
+				{developerMode && (
+					<LunaSetting title="Audio engine self-test" desc={selfTestStatus}>
+						<div style={buttonRow}>
+							<LunaButton
+								size="small"
+								variant="outlined"
+								disabled={testing}
+								onClick={async () => {
+									setTesting(true);
+									try {
+										const result = await runAudioSelfTest();
+										setSelfTestStatus(
+											result.ok
+												? `OK · ${result.context} · rms ${result.rms} · peak ${result.peak} · Δ${result.progressionSeconds}s`
+												: `Failed · ${result.reason ?? "unknown"} · context ${result.context}`,
+										);
+									} finally {
+										setTesting(false);
+									}
+								}}
+							>
+								{testing ? "Testing…" : "Run test"}
+							</LunaButton>
+						</div>
+					</LunaSetting>
+				)}
 				{developerMode && (
 					<LunaButtonSetting
 						title="Diagnostics"
