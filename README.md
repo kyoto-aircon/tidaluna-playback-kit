@@ -22,7 +22,7 @@ A pill beside the volume control shows the live rate and opens a log-scaled spee
 - **Speed** — `−` / `+` steppers and a log-scaled slider; range and snap are configurable (defaults `0.05×` – `10×`, step `0.05×`).
 - **Pitch follows speed** — rate-based chipmunk / slow-mo, YouTube-style pitch preservation by default.
 - **Pitch shifter** — independent `−12…+12` semitone offset through a Web Audio worklet, with the rate untouched. Mutually exclusive with *Pitch follows speed*: turning one on turns the other off.
-- **Effects** — 3-band EQ, feedback delay and generated-impulse reverb in the same Web Audio chain as pitch; per-effect enable and live parameters in Luna settings. Requires audio capture, same as the pitch shifter.
+- **Effects** — 8-band EQ (vertical sliders, 62 Hz–8 kHz, ±12 dB), feedback delay and generated-impulse reverb in the same Web Audio chain as pitch; per-effect enable and live parameters in Luna settings. Requires audio capture, same as the pitch shifter.
 - **Presets** — save the current speed/pitch as a named preset, apply one with a click, delete custom ones. While a preset is active the playback controls are locked; choose **Custom** to edit again.
 - **Preset editing** — rename, overwrite from the current state, and reorder custom presets in Luna settings; Nightcore stays fixed at the top and cannot be edited or removed.
 - **Config file** — settings and presets live in a versioned JSON file inside TIDAL's userData folder (`playback-kit/config.json`), editable outside Luna and backed up by copying. Settings autosave 300 ms after changes; **Reload** re-reads the file, **Import…/Export…** just replace/copy it through a file dialog.
@@ -97,7 +97,7 @@ The exact path is shown in **Luna settings → Playback Kit → Config file**. L
     "presetId": "nightcore",
     "developerMode": false,
     "effects": {
-      "eq": { "enabled": false, "low": 0, "mid": 0, "high": 0 },
+      "eq": { "enabled": false, "bands": [0, 0, 0, 0, 0, 0, 0, 0] },
       "delay": { "enabled": false, "timeMs": 250, "feedback": 0.25, "mix": 0.25 },
       "reverb": { "enabled": false, "decay": 2, "mix": 0.25 }
     },

@@ -1,6 +1,6 @@
 import { attach, ensureContext, getStatus, insertGroup } from "./audioEngine";
 import { debugLog } from "./debug";
-import { hasAudibleEffects, normalizeEffects, type EffectsSettings } from "./effectsSettings";
+import { EQ_FREQUENCIES, hasAudibleEffects, normalizeEffects, type EffectsSettings } from "./effectsSettings";
 
 export interface EffectsEngineState {
 	built: boolean;
@@ -12,9 +12,7 @@ export interface EffectsEngineState {
 
 interface Graph {
 	fxIn: GainNode;
-	eqLow: BiquadFilterNode;
-	eqMid: BiquadFilterNode;
-	eqHigh: BiquadFilterNode;
+	eqFilters: BiquadFilterNode[];
 	delayDry: GainNode;
 	delayNode: DelayNode;
 	delayWet: GainNode;
@@ -52,16 +50,17 @@ const build = async (): Promise<Graph> => {
 	const ctx = await ensureContext();
 	if (graph !== undefined) return graph;
 	const fxIn = ctx.createGain();
-	const eqLow = ctx.createBiquadFilter();
-	eqLow.type = "lowshelf";
-	eqLow.frequency.value = 200;
-	const eqMid = ctx.createBiquadFilter();
-	eqMid.type = "peaking";
-	eqMid.frequency.value = 1000;
-	eqMid.Q.value = 1;
-	const eqHigh = ctx.createBiquadFilter();
-	eqHigh.type = "highshelf";
-	eqHigh.frequency.value = 4000;
+	const eqFilters = EQ_FREQUENCIES.map((frequency, index) => {
+		const filter = ctx.createBiquadFilter();
+		filter.frequency.value = frequency;
+		if (index === 0) filter.type = "lowshelf";
+		else if (index === EQ_FREQUENCIES.length - 1) filter.type = "highshelf";
+		else {
+			filter.type = "peaking";
+			filter.Q.value = 1.2;
+		}
+		return filter;
+	});
 
 	const delayDry = ctx.createGain();
 	const delayNode = ctx.createDelay(2);
@@ -74,13 +73,13 @@ const build = async (): Promise<Graph> => {
 	const reverbWet = ctx.createGain();
 	const fxOut = ctx.createGain();
 
-	fxIn.connect(eqLow);
-	eqLow.connect(eqMid);
-	eqMid.connect(eqHigh);
+	fxIn.connect(eqFilters[0]);
+	for (let index = 1; index < eqFilters.length; index += 1) eqFilters[index - 1].connect(eqFilters[index]);
+	const eqTail = eqFilters[eqFilters.length - 1];
 
-	eqHigh.connect(delayDry);
+	eqTail.connect(delayDry);
 	delayDry.connect(reverbIn);
-	eqHigh.connect(delayNode);
+	eqTail.connect(delayNode);
 	delayNode.connect(delayWet);
 	delayWet.connect(reverbIn);
 	delayNode.connect(delayFeedback);
@@ -94,9 +93,7 @@ const build = async (): Promise<Graph> => {
 
 	graph = {
 		fxIn,
-		eqLow,
-		eqMid,
-		eqHigh,
+		eqFilters,
 		delayDry,
 		delayNode,
 		delayWet,
@@ -119,12 +116,10 @@ const applyParams = (ctx: AudioContext, effects: EffectsSettings): void => {
 	const smooth = 0.03;
 	const g = graph;
 
-	const eqLow = effects.eq.enabled ? effects.eq.low : 0;
-	const eqMid = effects.eq.enabled ? effects.eq.mid : 0;
-	const eqHigh = effects.eq.enabled ? effects.eq.high : 0;
-	g.eqLow.gain.setTargetAtTime(eqLow, now, smooth);
-	g.eqMid.gain.setTargetAtTime(eqMid, now, smooth);
-	g.eqHigh.gain.setTargetAtTime(eqHigh, now, smooth);
+	for (let index = 0; index < g.eqFilters.length; index += 1) {
+		const gain = effects.eq.enabled ? (effects.eq.bands[index] ?? 0) : 0;
+		g.eqFilters[index].gain.setTargetAtTime(gain, now, smooth);
+	}
 
 	const delayWet = effects.delay.enabled ? effects.delay.mix : 0;
 	g.delayNode.delayTime.setTargetAtTime(Math.min(2, Math.max(0.02, effects.delay.timeMs / 1000)), now, smooth);

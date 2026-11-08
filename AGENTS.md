@@ -61,3 +61,4 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 - `effectsEngine.ts` builds one group (`insertGroup(fxIn, fxOut)`) with `eq → (dry+delay) → (dry+convolution)` and inserts it after pitch. Parameters use `setTargetAtTime`; the reverb impulse is regenerated only when decay changes by >0.05 s.
 - If the context is suspended (e.g. effects enabled from config at startup), `updateEffects` does not attach and reports `audio context suspended`; the 1 s scan retries after a user gesture.
 - Effects share the single MediaElementSource with the pitch shifter, so both depend on capture succeeding.
+- EQ is 8 bands at 62/125/250/500/1k/2k/4k/8k Hz (lowshelf, peaking Q1.2, highshelf), stored as `eq.bands: number[8]` in dB; older `low/mid/high` configs are migrated by `normalizeBands`. UI is `EqSliders.tsx` (vertical pointer/keyboard sliders, no MUI dependency).

@@ -6,6 +6,8 @@ import { runAudioSelfTest } from "./audioSelfTest";
 import { parseConfig, serializeConfig } from "./config";
 import { exportConfig, getConfigPath, importConfig, readConfig, revealConfig, writeConfig } from "./config.native";
 import { copyReport } from "./debug";
+import { EQ_BANDS } from "./effectsSettings";
+import { EqSliders } from "./EqSliders";
 import { formatSemitones } from "./pitch";
 import { presetStore, type PlaybackPreset } from "./presets";
 import { formatSpeed } from "./speed";
@@ -263,36 +265,19 @@ export const Settings = () => {
 			<LunaSettings title="Effects" desc="Applied to the same Web Audio chain as the pitch shifter. Requires audio capture (use the dev-mode self-test if nothing changes).">
 				<LunaSwitchSetting
 					title="Equalizer"
-					desc="Low shelf 200 Hz, peaking 1 kHz, high shelf 4 kHz. Gains in dB."
+					desc="8 bands, 62 Hz to 8 kHz, ±12 dB. Drag a band; double-click resets it."
 					checked={effects.eq.enabled}
 					onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEq({ enabled: e.target.checked })}
 				/>
-				<LunaTextSetting
-					title="Low gain (dB)"
-					defaultValue={String(effects.eq.low)}
-					inputProps={{ inputMode: "decimal" }}
-					onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-						const value = parseNumber(e.target.value);
-						if (value !== undefined) setEq({ low: Math.max(-12, Math.min(12, value)) });
-					}}
-				/>
-				<LunaTextSetting
-					title="Mid gain (dB)"
-					defaultValue={String(effects.eq.mid)}
-					inputProps={{ inputMode: "decimal" }}
-					onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-						const value = parseNumber(e.target.value);
-						if (value !== undefined) setEq({ mid: Math.max(-12, Math.min(12, value)) });
-					}}
-				/>
-				<LunaTextSetting
-					title="High gain (dB)"
-					defaultValue={String(effects.eq.high)}
-					inputProps={{ inputMode: "decimal" }}
-					onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-						const value = parseNumber(e.target.value);
-						if (value !== undefined) setEq({ high: Math.max(-12, Math.min(12, value)) });
-					}}
+				<LunaSetting title="Bands" desc="Vertical sliders; Shift+arrow for 3 dB steps.">
+					<EqSliders eq={effects.eq} disabled={!effects.eq.enabled} onChange={(bands) => setEq({ bands })} />
+				</LunaSetting>
+				<LunaButtonSetting
+					title="Flatten EQ"
+					desc="Set every band to 0 dB."
+					children="Flat"
+					disabled={!effects.eq.enabled}
+					onClick={() => setEq({ bands: Array.from({ length: EQ_BANDS }, () => 0) })}
 				/>
 				<LunaSwitchSetting
 					title="Delay"
