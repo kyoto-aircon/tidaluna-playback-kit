@@ -4,7 +4,6 @@ A [TidaLuna](https://github.com/Inrixia/TidaLuna) plugin that adds speed, pitch 
 
 A pill beside the volume control shows the live rate and opens a log-scaled speed slider, an independent pitch shifter, and presets — including a built-in **Nightcore** preset.
 
-![Playback Kit popover](docs/popover.png)
 
 ## Install
 
