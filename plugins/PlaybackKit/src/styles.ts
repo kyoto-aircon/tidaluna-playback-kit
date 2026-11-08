@@ -465,9 +465,34 @@ export const SPEED_CSS = `
 	margin-top: 14px;
 }
 .lunaspeed-pitch-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
 	font-size: 0.929rem;
 	font-weight: 600;
 	color: var(--lunaspeed-fg);
+}
+.lunaspeed-pitch-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--lunaspeed-faint);
+	opacity: 0;
+}
+.lunaspeed-pitch-dot[data-status="ready"],
+.lunaspeed-pitch-dot[data-status="running"],
+.lunaspeed-pitch-dot[data-status="waiting"],
+.lunaspeed-pitch-dot[data-status="unavailable"] {
+	opacity: 1;
+}
+.lunaspeed-pitch-dot[data-status="running"] {
+	background: var(--lunaspeed-accent);
+}
+.lunaspeed-pitch-dot[data-status="waiting"] {
+	background: var(--wave-color-solid-warning-fill, currentColor);
+}
+.lunaspeed-pitch-dot[data-status="unavailable"] {
+	background: var(--wave-color-text-danger, currentColor);
 }
 .lunaspeed-pitch {
 	display: inline-flex;
@@ -513,18 +538,6 @@ export const SPEED_CSS = `
 }
 .lunaspeed-lock[hidden] {
 	display: none;
-}
-.lunaspeed-engine {
-	margin-top: 6px;
-	font-size: 0.786rem;
-	line-height: 1.4;
-	color: var(--lunaspeed-faint);
-}
-.lunaspeed-engine[hidden] {
-	display: none;
-}
-.lunaspeed-engine[data-status="unavailable"] {
-	color: var(--wave-color-text-danger, currentColor);
 }
 .lunaspeed-slider[data-locked="true"] {
 	opacity: 0.45;

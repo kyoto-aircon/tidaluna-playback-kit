@@ -113,7 +113,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		</div>
 		<div class="lunaspeed-ticks"></div>
 		<div class="lunaspeed-pitch-row">
-			<span class="lunaspeed-pitch-label">Pitch shift</span>
+			<span class="lunaspeed-pitch-label">Pitch shift<span class="lunaspeed-pitch-dot" data-status="idle"></span></span>
 			<div class="lunaspeed-pitch">
 				<button class="lunaspeed-pitch-step" type="button" data-delta="-1" aria-label="Lower pitch">−</button>
 				<span class="lunaspeed-pitch-value">0 st</span>
@@ -125,7 +125,6 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 			<button class="lunaspeed-switch" type="button" role="switch" aria-checked="false" aria-label="Pitch follows speed"></button>
 		</div>
 		<div class="lunaspeed-lock" hidden></div>
-		<div class="lunaspeed-engine" hidden></div>
 		<div class="lunaspeed-warning" hidden>
 			<span class="lunaspeed-warning-title">Native (lossless) player</span>
 			<span class="lunaspeed-warning-text">TIDAL ignores speed and pitch here. They need the browser player.</span>
@@ -158,7 +157,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 	const copyButton = popover.querySelector<HTMLButtonElement>(".lunaspeed-copy") as HTMLButtonElement;
 	const settingsButton = popover.querySelector<HTMLButtonElement>(".lunaspeed-settings") as HTMLButtonElement;
 	const lockNote = popover.querySelector<HTMLElement>(".lunaspeed-lock") as HTMLElement;
-	const engineNote = popover.querySelector<HTMLElement>(".lunaspeed-engine") as HTMLElement;
+	const pitchDot = popover.querySelector<HTMLElement>(".lunaspeed-pitch-dot") as HTMLElement;
 	const warning = popover.querySelector<HTMLElement>(".lunaspeed-warning") as HTMLElement;
 	const warningAction = popover.querySelector<HTMLButtonElement>(".lunaspeed-warning-action") as HTMLButtonElement;
 	const quality = popover.querySelector<HTMLElement>(".lunaspeed-quality") as HTMLElement;
@@ -168,6 +167,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 	let presetsKey = "";
 	let isOpen = false;
 	let dragging = false;
+	let engineTimer: ReturnType<typeof setInterval> | undefined;
 
 	const setSliderVisual = (position: number): void => {
 		slider.style.setProperty("--lunaspeed-pos", String(clampNumber(position, 0, 1)));
@@ -259,24 +259,21 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 	};
 
 	const renderEngine = (semitones: number): void => {
-		if (semitones === 0 || options.getPitchEngineState === undefined) {
-			engineNote.hidden = true;
-			return;
-		}
-		const engine = options.getPitchEngineState();
+		const engine = options.getPitchEngineState?.();
+		const status = semitones === 0 ? "idle" : (engine?.status ?? "idle");
+		pitchDot.dataset.status = status;
 		const text =
-			engine.status === "running"
-				? "Pitch engine: active"
-				: engine.status === "waiting"
-					? "Pitch engine: waiting for the audio element"
-					: engine.status === "unavailable"
-						? `Pitch engine: unavailable${engine.reason === undefined ? "" : ` — ${engine.reason}`}`
-						: engine.status === "ready"
-							? "Pitch engine: ready"
-							: "Pitch engine: idle";
-		engineNote.textContent = text;
-		engineNote.hidden = false;
-		engineNote.dataset.status = engine.status;
+			status === "running"
+				? "Pitch engine active"
+				: status === "waiting"
+					? "Pitch engine waiting for the audio element"
+					: status === "unavailable"
+						? "Pitch engine unavailable" + (engine?.reason === undefined ? "" : ": " + engine.reason)
+						: status === "ready"
+							? "Pitch engine ready"
+							: "Pitch engine idle";
+		pitchDot.title = semitones === 0 ? "" : text;
+		pitchDot.setAttribute("aria-label", semitones === 0 ? "" : text);
 	};
 
 	const renderPlayerState = (kind: PlayerKind): void => {
@@ -369,6 +366,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		document.addEventListener("pointerdown", onDocumentPointerDown, true);
 		document.addEventListener("keydown", onDocumentKeyDown, true);
 		window.addEventListener("resize", onResize);
+		engineTimer = setInterval(() => renderEngine(store.get().pitchSemitones), 500);
 		debugLog("debug", "popover open");
 	};
 
@@ -378,6 +376,10 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		popover.hidden = true;
 		delete pill.dataset.open;
 		saveForm.hidden = true;
+		if (engineTimer !== undefined) {
+			clearInterval(engineTimer);
+			engineTimer = undefined;
+		}
 		document.removeEventListener("pointerdown", onDocumentPointerDown, true);
 		document.removeEventListener("keydown", onDocumentKeyDown, true);
 		window.removeEventListener("resize", onResize);
