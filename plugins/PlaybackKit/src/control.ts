@@ -10,7 +10,7 @@ import { formatSpeed, positionToSpeed, speedLabel, speedToPosition, tickValues, 
 import type { SpeedStore } from "./state";
 import { SPEED_CSS } from "./styles";
 
-const SLIDER_RESOLUTION = 1000;
+const SLIDER_RESOLUTION = 10000;
 const POPOVER_GAP = 12;
 const VIEWPORT_MARGIN = 8;
 const MOUNT_INTERVAL_MS = 1000;
