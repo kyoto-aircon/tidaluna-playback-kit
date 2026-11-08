@@ -1,91 +1,128 @@
-# Playback Kit for TIDAL Luna
+# Playback Kit <sub>for TIDAL Luna</sub>
 
-A [TidaLuna](https://github.com/Inrixia/TidaLuna) plugin that adds speed, pitch and presets to the TIDAL desktop player.
+[![release](https://img.shields.io/github/v/release/kyoto-aircon/tidaluna-playback-kit?style=flat-square&label=release)](https://github.com/kyoto-aircon/tidaluna-playback-kit/releases/latest)
+[![license](https://img.shields.io/github/license/kyoto-aircon/tidaluna-playback-kit?style=flat-square)](LICENSE)
+![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-555?style=flat-square)
 
-A pill beside the volume control shows the live rate and opens a log-scaled speed slider, an independent pitch shifter, and presets — including a built-in **Nightcore** preset.
+Speed, pitch, effects and presets for the TIDAL desktop player.
 
-![Playback Kit popover](docs/popover.png)
+<p align="center">
+  <img src="docs/popover.png" width="360" alt="Playback Kit popover: 1.35x, presets, pitch shift, pitch follows speed">
+</p>
 
+A pill sits next to the volume control and shows the live rate. Click it for a log-scaled
+speed slider, an independent pitch shifter, presets (including **Nightcore**), and the
+current audio chain — all following TIDAL's theme, fonts and type scale.
 
 ## Install
 
-1. TIDAL → **Luna Settings → Plugin Store** → add:
+1. TIDAL → **Luna Settings → Plugin Store**
+2. Add this store URL:
 
    ```
    https://github.com/kyoto-aircon/tidaluna-playback-kit/releases/download/latest/store.json
    ```
 
-2. Install **Playback Kit** and enable it.
+3. Install **Playback Kit** and enable it.
 
-## Features
+## What you get
 
-- **Speed** — `−` / `+` steppers and a log-scaled slider; range and snap are configurable (defaults `0.05×` – `10×`, step `0.05×`).
-- **Pitch follows speed** — rate-based chipmunk / slow-mo, YouTube-style pitch preservation by default.
-- **Pitch shifter** — independent `−12…+12` semitone offset through a Web Audio worklet, with the rate untouched. Mutually exclusive with *Pitch follows speed*: turning one on turns the other off.
-- **Effects** — 8-band EQ (vertical sliders, 62 Hz–8 kHz, ±12 dB), feedback delay and generated-impulse reverb in the same Web Audio chain as pitch; per-effect enable and live parameters in Luna settings. Requires audio capture, same as the pitch shifter.
-- **Presets** — save the current speed, pitch and effects as a named preset, apply one with a click, delete custom ones. While a preset is active the playback and effects controls are locked; choose **Custom** to edit again.
-- **Preset editing** — rename, overwrite from the current state, and reorder custom presets in Luna settings; Nightcore stays fixed at the top and cannot be edited or removed.
-- **Config file** — settings and presets live in a versioned JSON file inside TIDAL's userData folder (`playback-kit/config.json`), editable outside Luna and backed up by copying. Settings autosave 300 ms after changes; **Reload** re-reads the file, **Import…/Export…** just replace/copy it through a file dialog.
-- **Developer mode** — off by default: no log buffer, no Copy diagnostics buttons, no test tools. When on it adds **Audio engine self-test** (attach, measure RMS, explain silence/blocking).
-- **Nightcore** — the built-in preset (cannot be removed): `1.35×` with pitch following speed.
-- **Theme-aware** — the popover mounts inside TIDAL's app root (`#wimp`) and every colour/font comes from TIDAL's own design tokens and inherited styles. No hardcoded palette or px font sizes: colours, fonts and the rem type scale follow TIDAL, so token/theme changes propagate.
-- **Luna settings shortcut** — the popover footer has **Luna settings**, which opens the settings page on the Plugins tab and scrolls to this plugin's card.
-- **Lossless fallback with a way back** — on the native player the popover explains why speed/pitch can't apply and offers **Use browser player** (High quality); it remembers your previous quality and shows **Restore …**.
-- **Scrubber stays honest** — at any rate other than 1× the plugin re-feeds the real position to TIDAL so audio and progress bar don't drift.
-- **Clean unload** — disabling restores `1×`, no pitch shift, and removes the UI.
+| | |
+|---|---|
+| 🎚️ **Speed** | `−` / `+` steppers and a log slider. Range and snap are configurable (default `0.05×`–`10×`, step `0.05×`). The thumb moves smoothly, the rate snaps to your step. |
+| 🎵 **Pitch follows speed** | Rate-based chipmunk / slow-mo. Off by default, so pitch is preserved like YouTube. |
+| 🎼 **Pitch shifter** | Independent `−12…+12 st` offset through an AudioWorklet. Mutually exclusive with *Pitch follows speed*. |
+| 📊 **8-band EQ** | Vertical sliders at 62/125/250/500 Hz and 1/2/4/8 kHz, ±12 dB, with a Flat action. |
+| ⏱️ **Delay** | 20–2000 ms, feedback and wet mix. |
+| 🏛️ **Reverb** | Generated impulse response, 0.2–8 s decay and wet mix. |
+| ⭐ **Presets** | Save speed, pitch and effects. **Nightcore** is built in at `1.35×` with pitch following speed. While a preset is active the playback and effect controls are locked; choose **Custom** to edit. |
+| 🎨 **Theme-aware** | Colours, fonts and rem sizes come from TIDAL's own tokens and the app root — TidaLuna themes apply automatically. |
+| 🧭 **Honest scrubber** | At any rate other than 1× the plugin re-feeds the real position so audio and progress bar stay aligned. |
+| 🩺 **Developer mode** | Off by default. Enables logs, Copy diagnostics and an **audio engine self-test** that measures captured RMS. |
 
-## Caveats
+## How it works
 
-- Chromium clamps effective playback to **0.0625× – 16×**. Speeds below `0.0625×` are selectable but play at that floor.
-- TIDAL desktop plays **LOSSLESS / HI_RES through a native audio backend** with no media element or rate API. Speed and pitch need the shaka/browser player; the popover offers the switch.
-- The **pitch shifter is experimental**. It needs `AudioContext.createMediaElementSource`, so it fails gracefully if TIDAL already connected the element or if the stream is DRM-protected. Status is shown in the popover and in diagnostics; audio never breaks, it just stays unshifted.
-- Pitch-shift quality is a granular delay line: fine for small offsets and nightcore, artefacty at the extremes.
+Playback Kit owns one Web Audio graph. Pitch, EQ, delay and reverb are nodes in it, in that
+order; nothing else in the app creates a competing `MediaElementSource`.
 
-## Troubleshooting / diagnostics
+```mermaid
+flowchart LR
+    V["🎬 video-one / video-two"] -->|MediaElementSource| IN["🔌 chain in"]
 
-Enable **Developer mode** in Luna settings first; then open the pill → **Copy diagnostics**, or use the same action in Luna settings. While it is off, nothing is logged and the buttons stay hidden. The report includes:
+    subgraph KIT["Playback Kit graph"]
+        direction LR
+        PITCH["🎚️ Pitch shifter<br/>AudioWorklet"] --> EQ["📊 8-band EQ"]
+        EQ --> DELAY["⏱️ Delay"]
+        DELAY --> REVERB["🏛️ Reverb"]
+    end
 
-- plugin version, URL, UA, settings and active preset
-- detected player kind (`native` / `shaka` / `browser`), native component API
-- pitch engine status (`idle` / `waiting` / `running` / `unavailable` + reason), `mediaKeys` presence
-- selector counts, every media element's state, a 1.5 s progression probe (`observedRate` vs `expectedRate`)
-- resolved design tokens (accent, surfaces, borders, warning/danger, `--baseFontSize`, `--baseLineHeight`) plus computed footer / utility / volume / quality / progress styles, for theme mismatches
-- scrubber UI time vs actual media time
-- the last 500 log lines
+    IN --> PITCH
+    REVERB --> OUT["🔈 chain out"]
+    OUT --> DEST["🎧 TIDAL output"]
+    OUT -.->|analyser tap| ANA["📈 self-test / diagnostics"]
 
-DevTools exposes `window.__playbackSpeed` (`logs()`, `report()`, `copy()`, `selectors()`, `playerKind()`); console entries use the `[PlaybackKit]` prefix.
-
-## Audio engine (for effects plugins)
-
-Playback Kit owns the renderer's only MediaElementSource and exposes a small graph API at `window.__playbackKitAudio`:
-
-```ts
-{
-  version: 1,
-  ensureContext(): Promise<AudioContext>,
-  loadWorklet(source: string, name: string): Promise<void>,
-  attach(element: HTMLMediaElement): Promise<void>,
-  insert(node: AudioNode, index?: number): Promise<void>,
-  remove(node: AudioNode): Promise<boolean>,
-  list(): AudioNode[],
-  status(): { context, sampleRate, sources, nodes },
-  measureRms(ms?): Promise<{ rms, peak, silent, samples, durationMs }>
-}
+    classDef node fill:#DDF4FF,stroke:#0969DA,stroke-width:2px,color:#0A3069
+    classDef stage fill:#EAF7EA,stroke:#1A7F37,stroke-width:2px,color:#0B3D1A
+    classDef out fill:#FFF4D6,stroke:#9A6700,stroke-width:2px,color:#4A3000
+    classDef test fill:#F3E8FF,stroke:#8250DF,stroke-width:2px,color:#3B1D6E
+    class V,IN node
+    class PITCH,EQ,DELAY,REVERB stage
+    class OUT,DEST out
+    class ANA test
 ```
 
-A separate effects plugin should depend on Playback Kit and insert processor nodes (delay, convolver, EQ, …) into that chain. Rules: use the shared context from `ensureContext()`, never connect a node's output yourself (the engine rebuilds the chain), and never create a second MediaElementSource. Without Playback Kit there is no engine, so effects should show an "install Playback Kit" notice instead of attaching.
+### The two TIDAL players
 
-The built-in EQ/delay/reverb already live in this chain (pitch → EQ → delay → reverb), so the API remains open for additional effect nodes rather than a separate owner.
+TIDAL routes audio differently depending on quality. This is the single biggest source of
+"it does nothing" reports.
+
+```mermaid
+flowchart TD
+    PLAY["▶️ Playback starts"] --> WHICH{"Which player?"}
+
+    WHICH -->|"HIGH / browser player"| SHAKA["🎬 shakaPlayer<br/>HTMLMediaElement"]
+    WHICH -->|"LOSSLESS / HI_RES"| NATIVE["🧱 nativePlayer<br/>no media element"]
+
+    SHAKA --> WORKS["✅ speed · pitch · effects"]
+    NATIVE --> NOOP["❌ everything ignored"]
+    NOOP -.->|"Use browser player"| SHAKA
+
+    classDef start fill:#DDF4FF,stroke:#0969DA,stroke-width:2px,color:#0A3069
+    classDef decision fill:#FFF8C5,stroke:#9A6700,stroke-width:2px,color:#4A3000
+    classDef good fill:#EAF7EA,stroke:#1A7F37,stroke-width:2px,color:#0B3D1A
+    classDef bad fill:#FFEBE9,stroke:#CF222E,stroke-width:2px,color:#5A0A0A
+    class PLAY start
+    class WHICH decision
+    class SHAKA,WORKS good
+    class NATIVE,NOOP bad
+```
+
+On the native player the popover shows a warning with **Use browser player**, which switches
+TIDAL streaming quality to High. It remembers your previous quality and offers **Restore …**.
+
+## Presets
+
+A preset is a snapshot of **speed + pitch mode + pitch offset + all effects**.
+
+- **Nightcore** is built in (`1.35×`, pitch follows speed), cannot be edited or removed.
+- **Save preset** in the popover captures the current state.
+- In Luna settings you can **Use**, **Rename**, **Update** (overwrite from current state), reorder
+  with ↑/↓, and **Delete** custom presets.
+- The active preset is locked: speed, pitch and effects controls are disabled until you choose
+  **Custom** in the popover.
 
 ## Config file
 
-Everything persistent is in one versioned JSON file, in TIDAL's Electron `userData` folder:
+Everything persistent lives in one versioned JSON file in TIDAL's Electron `userData` folder:
 
-- Windows: `%APPDATA%/TIDAL/playback-kit/config.json`
-- macOS: `~/Library/Application Support/TIDAL/playback-kit/config.json`
-- Linux: `~/.config/TIDAL/playback-kit/config.json`
+| OS | Path |
+|---|---|
+| Windows | `%APPDATA%/TIDAL/playback-kit/config.json` |
+| macOS | `~/Library/Application Support/TIDAL/playback-kit/config.json` |
+| Linux | `~/.config/tidal-hifi/playback-kit/config.json` |
 
-The exact path is shown in **Luna settings → Playback Kit → Config file**. Luna settings also has **Show folder**, **Reload**, **Import…** and **Export…**.
+The exact path is in **Luna settings → Playback Kit → Config file**, with **Copy path**, **Show
+folder**, **Reload**, **Import…** and **Export…**.
 
 ```json
 {
@@ -97,21 +134,42 @@ The exact path is shown in **Luna settings → Playback Kit → Config file**. L
     "presetId": "nightcore",
     "developerMode": false,
     "effects": {
-      "eq": { "enabled": false, "bands": [0, 0, 0, 0, 0, 0, 0, 0] },
+      "eq": { "enabled": true, "bands": [4, 2, 0, -2, -1, 0, 2, 3] },
       "delay": { "enabled": false, "timeMs": 250, "feedback": 0.25, "mix": 0.25 },
-      "reverb": { "enabled": false, "decay": 2, "mix": 0.25 }
+      "reverb": { "enabled": true, "decay": 3, "mix": 0.3 }
     },
     "bounds": { "min": 0.05, "max": 10, "step": 0.01 }
   },
   "presets": [
-    { "id": "custom-abc", "name": "Practice", "speed": 1.2, "pitchShifts": false, "pitchSemitones": 2, "effects": { "eq": { "enabled": true, "bands": [4, 2, 0, -2, -1, 0, 2, 3] }, "delay": { "enabled": false, "timeMs": 250, "feedback": 0.25, "mix": 0.25 }, "reverb": { "enabled": true, "decay": 3, "mix": 0.3 } } }
+    {
+      "id": "custom-abc",
+      "name": "Practice",
+      "speed": 1.2,
+      "pitchShifts": false,
+      "pitchSemitones": 2,
+      "effects": { "eq": { "enabled": false, "bands": [0, 0, 0, 0, 0, 0, 0, 0] }, "delay": { "enabled": false, "timeMs": 250, "feedback": 0.25, "mix": 0.25 }, "reverb": { "enabled": false, "decay": 2, "mix": 0.25 } }
+    }
   ]
 }
 ```
 
-`nightcore` is implicit and must not be added to `presets`. Edit the file with TIDAL closed (or press **Reload** after editing), keep `version` at `1`, and back it up by copying the file.
+`nightcore` is implicit and must not be added to `presets`. Settings autosave 300 ms after the
+last change; edit the file with TIDAL closed or press **Reload** afterwards.
 
-The first config read asks Luna to allow the plugin's native module **fs** access; **Import…/Export…/Show folder** ask for **electron** access the first time they are used. Both are cached by Luna's trust store; deny them and the plugin falls back to browser storage.
+> The first config read asks Luna to allow the plugin's native **fs** access; **Import/Export/Show
+> folder** ask for **electron** access once. Both are cached in Luna's trust store. If you deny
+> them, the plugin falls back to browser storage and the file buttons stop working.
+
+## Troubleshooting
+
+| Symptom | Likely cause | What to do |
+|---|---|---|
+| Speed, pitch or effects do nothing | TIDAL is on the native lossless player | Popover → **Use browser player** (High quality) |
+| Effects/pitch still silent after switching | Web Audio capture blocked (DRM or element already connected) | Enable **Developer mode** → **Audio engine self-test**; `rms ≈ 0` means capture is blocked |
+| Quality badge shows `96 kbps` / no quality selected | Known quirk of switching via `settings/SET_STREAMING_QUALITY` | Cosmetic; **Restore …** or pick quality in TIDAL settings |
+| Progress bar drifts from audio | Shouldn't happen — the plugin re-feeds the position at non-1× | If it does, enable Developer mode and send diagnostics |
+| Pitch sounds artefacty | Granular shifter at large offsets | Use smaller offsets; a smooth algorithm is on the roadmap |
+| Logs/buttons missing | Developer mode is off | Luna settings → Playback Kit → Developer |
 
 ## Development
 
@@ -125,17 +183,56 @@ GH_TOKEN=... npm run release   # publish dist/* to the mutable `latest` release
 
 For a local dev loop, add `http://127.0.0.1:3000` as a store URL in Luna.
 
-### How it works
+### Source map
 
-- `src/speed.ts` — snapping, clamping, log-scale mapping, ticks.
-- `src/pitch.ts` — semitone clamp, labels, `2^(n/12)` ratio.
-- `src/state.ts` — persisted settings (speed, pitch mode, semitones, active preset); migrates the old Playback Speed key.
-- `src/presets.ts` — built-in Nightcore + custom presets, persisted.
-- `src/mediaController.ts` — sets `playbackRate` / `defaultPlaybackRate` / `preservesPitch` on TIDAL's hidden video elements and re-asserts after track loads.
-- `src/pitchEngine.ts` / `src/pitchWorklet.ts` — Web Audio graph and granular pitch-shift worklet.
-- `src/playerKind.ts` / `src/nativePlayer.ts` — player detection and the native backend probe.
-- `src/timeSync.ts` — keeps TIDAL's scrubber aligned at non-1× rates.
-- `src/control.ts` / `src/Settings.tsx` / `src/styles.ts` — pill, popover, settings, theme tokens.
+```
+plugins/PlaybackKit/src/
+├─ index.ts            wiring: stores, controller, engine, scanner, config hydrate/save
+├─ speed.ts            snapping, clamping, log-scale mapping, ticks
+├─ state.ts            persisted settings + migration from Playback Speed
+├─ presets.ts          built-in Nightcore + custom presets
+├─ control.ts          the pill and popover
+├─ mediaController.ts  playbackRate / defaultPlaybackRate / preservesPitch
+├─ audioEngine.ts      single graph owner + analyser + worklet loader
+├─ pitchEngine.ts      pitch shifter node (AudioWorklet)
+├─ effectsEngine.ts    EQ → delay → reverb group
+├─ audioSelfTest.ts    dev-only capture/RMS diagnostic
+├─ playerKind.ts       native vs shaka vs browser detection
+├─ timeSync.ts         keeps TIDAL's scrubber aligned at non-1×
+└─ config.ts / config.native.ts / Settings.tsx / styles.ts
+```
+
+### Audio engine API (for effect plugins)
+
+Playback Kit owns the renderer's only `MediaElementSource` and exposes a small graph API at
+`window.__playbackKitAudio`:
+
+```ts
+{
+  version: 1,
+  ensureContext(): Promise<AudioContext>,
+  loadWorklet(source: string, name: string): Promise<void>,
+  attach(element: HTMLMediaElement): Promise<void>,
+  insert(node: AudioNode, index?: number): Promise<void>,
+  insertGroup(input: AudioNode, output: AudioNode, index?: number): Promise<void>,
+  remove(node: AudioNode): Promise<boolean>,
+  list(): AudioNode[],
+  status(): { context, sampleRate, sources, nodes },
+  measureRms(ms?): Promise<{ rms, peak, silent, samples, durationMs }>
+}
+```
+
+Rules: use the shared context, never connect a node's output yourself (the engine rebuilds the
+chain), and never create a second `MediaElementSource`.
+
+## Caveats
+
+- Chromium clamps effective playback to **0.0625×–16×**; below that you hear the floor.
+- Pitch and effects require Web Audio capture. DRM-protected streams can be silenced when captured
+  — the self-test tells you, and a TIDAL restart undoes the attachment.
+- Pitch quality is a granular delay line for now: fine for nightcore and small offsets, artefacty
+  at ±12 st.
+- The Windows Store build of TIDAL itself is not supported by TidaLuna.
 
 ## License
 
