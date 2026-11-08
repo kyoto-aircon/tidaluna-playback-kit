@@ -4,16 +4,17 @@ A [TidaLuna](https://github.com/Inrixia/TidaLuna) plugin that adds speed, pitch 
 
 A pill beside the volume control shows the live rate and opens a log-scaled speed slider, an independent pitch shifter, and presets — including a built-in **Nightcore** preset.
 
+![Playback Kit popover](docs/popover.png)
+
 ## Install
 
-1. Remove the old **Playback Speed** plugin first (the plugin name changed, so both would run).
-2. TIDAL → **Luna Settings → Plugin Store** → add:
+1. TIDAL → **Luna Settings → Plugin Store** → add:
 
    ```
    https://github.com/kyoto-aircon/tidaluna-playback-kit/releases/download/latest/store.json
    ```
 
-3. Install **Playback Kit** and enable it.
+2. Install **Playback Kit** and enable it.
 
 ## Features
 
