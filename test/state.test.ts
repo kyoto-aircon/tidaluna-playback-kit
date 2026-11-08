@@ -20,6 +20,7 @@ const defaults = {
 	pitchShifts: false,
 	pitchSemitones: 0,
 	presetId: null,
+	developerMode: false,
 	bounds: { min: 0.05, max: 10, step: 0.05 },
 };
 
@@ -133,6 +134,16 @@ describe("speed store", () => {
 		store.clearPreset();
 		assert.equal(store.get().presetId, null);
 		assert.equal(store.get().speed, 1.35, "clearing keeps the applied values");
+	});
+
+	it("toggles developer mode without touching the active preset", () => {
+		const store = createSpeedStore(fakeStorage());
+		store.applyPreset(NIGHTCORE_PRESET);
+		store.setDeveloperMode(true);
+		assert.equal(store.get().developerMode, true);
+		assert.equal(store.get().presetId, "nightcore");
+		store.reset();
+		assert.equal(store.get().developerMode, true, "reset keeps developer mode");
 	});
 
 	it("notifies subscribers and stops after unsubscribe", () => {

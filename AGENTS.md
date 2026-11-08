@@ -43,3 +43,8 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 - `presetStore` supports rename / update / move / replace; the built-in cannot be edited, moved or deleted.
 - Native modules are sandboxed: `fs` and `electron` are not whitelisted, so Luna prompts for trust per module (cached in `luna-trust-store.enc`). Require them lazily inside functions so registration never prompts; deny means fall back to local storage. `path` is whitelisted; `process.env` is a frozen subset (APPDATA/HOME/USERPROFILE, no XDG_CONFIG_HOME) and `process.resourcesPath` is available, which is how the userData folder is derived without `electron.app`.
 - Slider feel: while dragging, `--lunaspeed-pos` follows the raw pointer position (smooth) while the stored speed snaps to the configured step. On release the thumb animates to the snapped position via the `[data-settling]` transition; `render()` must not write the slider while `dragging` is true.
+
+## Developer mode
+
+- `settings.developerMode` (default false) gates `debugLog`: when false the ring buffer is cleared and every call is a no-op, and both Copy diagnostics buttons are hidden. `debugLog` used to be unconditional; do not add logging that assumes it runs.
+- index calls `setDiagnosticsEnabled(store.get().developerMode)` before its first log and on every store change; `reset()` keeps the flag.

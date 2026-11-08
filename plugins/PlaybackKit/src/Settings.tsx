@@ -54,7 +54,7 @@ export const Settings = () => {
 		return () => clearTimeout(timer);
 	}, [configStatus]);
 
-	const { bounds, pitchShifts } = settings;
+	const { bounds, pitchShifts, developerMode } = settings;
 
 	const applyConfigJson = async (json: string): Promise<boolean> => {
 		const config = parseConfig(json);
@@ -147,17 +147,25 @@ export const Settings = () => {
 					checked={pitchShifts}
 					onChange={(e: React.ChangeEvent<HTMLInputElement>) => speedStore.setPitchShifts(e.target.checked)}
 				/>
-				<LunaButtonSetting title="Reset speed" desc="Return to 1.00× with no pitch change." children="Reset" onClick={() => speedStore.reset()} />
-				<LunaButtonSetting
-					title="Diagnostics"
-					desc="Copy the player, pitch-engine, theme and media state plus recent logs."
-					children={copyStatus}
-					onClick={async () => {
-						setCopyStatus("Copying…");
-						const copied = await copyReport(speedStore.get());
-						setCopyStatus(copied ? "Copied" : "Copy failed");
-					}}
+				<LunaSwitchSetting
+					title="Developer mode"
+					desc="Write diagnostics logs and show the Copy diagnostics action. Off by default."
+					checked={developerMode}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => speedStore.setDeveloperMode(e.target.checked)}
 				/>
+				<LunaButtonSetting title="Reset speed" desc="Return to 1.00× with no pitch change." children="Reset" onClick={() => speedStore.reset()} />
+				{developerMode && (
+					<LunaButtonSetting
+						title="Diagnostics"
+						desc="Copy the player, pitch-engine, theme and media state plus recent logs."
+						children={copyStatus}
+						onClick={async () => {
+							setCopyStatus("Copying…");
+							const copied = await copyReport(speedStore.get());
+							setCopyStatus(copied ? "Copied" : "Copy failed");
+						}}
+					/>
+				)}
 			</LunaSettings>
 
 			<LunaSettings title="Presets" desc="Nightcore is built in; custom presets can be renamed, updated, reordered and deleted.">

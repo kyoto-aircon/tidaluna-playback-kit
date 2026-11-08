@@ -14,6 +14,8 @@ export interface SpeedSettings {
 	pitchSemitones: number;
 	/** Active preset id, or null for custom. */
 	presetId: string | null;
+	/** Writes logs and shows the Copy diagnostics actions. */
+	developerMode: boolean;
 	/** Slider range and snap increment. */
 	bounds: SpeedBounds;
 }
@@ -30,6 +32,7 @@ const defaults = (): SpeedSettings => ({
 	pitchShifts: false,
 	pitchSemitones: PITCH_DEFAULT,
 	presetId: null,
+	developerMode: false,
 	bounds: { ...DEFAULT_BOUNDS },
 });
 
@@ -50,6 +53,7 @@ const parseSettings = (raw: string | null): SpeedSettings => {
 		pitchShifts: pitchSemitones === 0 && record.pitchShifts === true,
 		pitchSemitones,
 		presetId: typeof record.presetId === "string" ? record.presetId : null,
+		developerMode: record.developerMode === true,
 		bounds,
 	};
 };
@@ -70,6 +74,7 @@ const sameSettings = (a: SpeedSettings, b: SpeedSettings): boolean =>
 	a.pitchShifts === b.pitchShifts &&
 	a.pitchSemitones === b.pitchSemitones &&
 	a.presetId === b.presetId &&
+	a.developerMode === b.developerMode &&
 	a.bounds.min === b.bounds.min &&
 	a.bounds.max === b.bounds.max &&
 	a.bounds.step === b.bounds.step;
@@ -135,6 +140,9 @@ export const createSpeedStore = (storage: StorageLike, key: string = STORAGE_KEY
 				presetId: preset.id,
 			});
 		},
+		setDeveloperMode(developerMode: boolean): void {
+			commit({ ...settings, developerMode });
+		},
 		clearPreset(): void {
 			commit({ ...settings, presetId: null });
 		},
@@ -147,11 +155,12 @@ export const createSpeedStore = (storage: StorageLike, key: string = STORAGE_KEY
 				pitchShifts: semitones === 0 && next.pitchShifts === true,
 				pitchSemitones: semitones,
 				presetId: typeof next.presetId === "string" ? next.presetId : null,
+				developerMode: next.developerMode === true,
 				bounds,
 			});
 		},
 		reset(): void {
-			commit({ ...defaults(), presetId: null, bounds: { ...settings.bounds } });
+			commit({ ...defaults(), developerMode: settings.developerMode, presetId: null, bounds: { ...settings.bounds } });
 		},
 		destroy(): void {
 			listeners.clear();

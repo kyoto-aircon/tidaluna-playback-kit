@@ -15,6 +15,7 @@ import {
 	PLUGIN_VERSION,
 	registerReportExtras,
 	registerTidalProbe,
+	setDiagnosticsEnabled,
 	setVerbose,
 	snapshotSelectors,
 } from "./debug";
@@ -302,6 +303,7 @@ const installDebugApi = (controller: SpeedController): void => {
 };
 
 try {
+	setDiagnosticsEnabled(speedStore.get().developerMode);
 	registerTidalProbe(probeActivePlayer);
 	try {
 		const legacy = LunaPlugin.getByName("@kyoto-aircon/playback-speed") as { store?: { enabled?: boolean } } | undefined;
@@ -336,6 +338,7 @@ try {
 	controller.start();
 
 	const unsubscribe = speedStore.subscribe((settings) => {
+		setDiagnosticsEnabled(settings.developerMode);
 		scheduleConfigSave();
 		debugLog("info", "settings changed", { speed: settings.speed, pitchShifts: settings.pitchShifts, bounds: settings.bounds });
 		controller.apply();

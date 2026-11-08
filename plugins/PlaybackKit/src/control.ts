@@ -309,6 +309,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		resetButton.disabled = locked;
 		renderPitch(pitchSemitones, pitchShifts, locked);
 		renderEngine(pitchSemitones);
+		copyButton.hidden = !settings.developerMode;
 
 		if (isOpen) positionPopover();
 	};

@@ -1,4 +1,4 @@
-export const PLUGIN_VERSION = "2.3.1";
+export const PLUGIN_VERSION = "2.4.0";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -12,6 +12,7 @@ export interface LogEntry {
 const MAX_ENTRIES = 500;
 const entries: LogEntry[] = [];
 let verbose = true;
+let diagnosticsEnabled = false;
 
 const safeData = (data: unknown): unknown => {
 	if (data === undefined) return undefined;
@@ -26,7 +27,15 @@ const safeData = (data: unknown): unknown => {
 	}
 };
 
+export const setDiagnosticsEnabled = (enabled: boolean): void => {
+	diagnosticsEnabled = enabled;
+	if (!enabled) entries.length = 0;
+};
+
+export const isDiagnosticsEnabled = (): boolean => diagnosticsEnabled;
+
 export const debugLog = (level: LogLevel, message: string, data?: unknown): void => {
+	if (!diagnosticsEnabled) return;
 	const entry: LogEntry = { at: Date.now(), level, message, data: safeData(data) };
 	entries.push(entry);
 	if (entries.length > MAX_ENTRIES) entries.shift();

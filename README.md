@@ -41,7 +41,7 @@ A pill beside the volume control shows the live rate and opens a log-scaled spee
 
 ## Troubleshooting / diagnostics
 
-Open the pill → **Copy diagnostics**, or use the same action in Luna settings. The report includes:
+Enable **Developer mode** in Luna settings first; then open the pill → **Copy diagnostics**, or use the same action in Luna settings. While it is off, nothing is logged and the buttons stay hidden. The report includes:
 
 - plugin version, URL, UA, settings and active preset
 - detected player kind (`native` / `shaka` / `browser`), native component API
@@ -71,6 +71,7 @@ The exact path is shown in **Luna settings → Playback Kit → Config file**. L
     "pitchShifts": true,
     "pitchSemitones": 0,
     "presetId": "nightcore",
+    "developerMode": false,
     "bounds": { "min": 0.05, "max": 10, "step": 0.01 }
   },
   "presets": [

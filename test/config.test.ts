@@ -9,6 +9,7 @@ const settings = {
 	pitchShifts: true,
 	pitchSemitones: 0,
 	presetId: "nightcore",
+	developerMode: false,
 	bounds: { min: 0.05, max: 10, step: 0.01 },
 };
 
