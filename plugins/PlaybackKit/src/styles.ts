@@ -180,6 +180,14 @@ export const SPEED_CSS = `
 	width: calc(8px + (100% - 16px) * var(--lunaspeed-pos, 0));
 	background: var(--lunaspeed-accent);
 }
+.lunaspeed-slider-fill,
+.lunaspeed-slider-thumb {
+	transition: none;
+}
+.lunaspeed-slider[data-settling="true"] .lunaspeed-slider-fill,
+.lunaspeed-slider[data-settling="true"] .lunaspeed-slider-thumb {
+	transition: left 0.14s ease, width 0.14s ease;
+}
 .lunaspeed-slider-thumb {
 	position: absolute;
 	left: calc(8px + (100% - 16px) * var(--lunaspeed-pos, 0));

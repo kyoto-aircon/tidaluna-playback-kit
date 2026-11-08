@@ -166,6 +166,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 	let isOpen = false;
 	let dragging = false;
 	let engineTimer: ReturnType<typeof setInterval> | undefined;
+	let settleTimer: ReturnType<typeof setTimeout> | undefined;
 
 	const setSliderVisual = (position: number): void => {
 		slider.style.setProperty("--lunaspeed-pos", String(clampNumber(position, 0, 1)));
@@ -402,12 +403,21 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 
 	range.addEventListener("pointerdown", () => {
 		dragging = true;
+		if (settleTimer !== undefined) clearTimeout(settleTimer);
+		delete slider.dataset.settling;
 	});
 	const endDrag = (): void => {
 		if (!dragging) return;
 		dragging = false;
+		// Snap the stored value, then let the thumb glide to it instead of teleporting.
 		const { speed, bounds } = store.get();
+		slider.dataset.settling = "true";
 		syncSlider(speed, bounds);
+		if (settleTimer !== undefined) clearTimeout(settleTimer);
+		settleTimer = setTimeout(() => {
+			settleTimer = undefined;
+			delete slider.dataset.settling;
+		}, 160);
 	};
 	range.addEventListener("change", endDrag);
 	window.addEventListener("pointerup", endDrag);
@@ -417,9 +427,9 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		if (range.disabled) return;
 		const position = Number(range.value) / SLIDER_RESOLUTION;
 		const bounds = store.get().bounds;
-		const speed = positionToSpeed(position, bounds);
-		setSliderVisual(speedToPosition(speed, bounds));
-		store.setSpeed(speed);
+		// The thumb tracks the pointer continuously; the stored rate still snaps to the step.
+		setSliderVisual(position);
+		store.setSpeed(positionToSpeed(position, bounds));
 	});
 
 	popover.addEventListener("keydown", (event) => {
@@ -522,6 +532,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		window.removeEventListener("pointercancel", endDrag);
 		if (copyResetTimer !== undefined) clearTimeout(copyResetTimer);
 		if (switchTimer !== undefined) clearTimeout(switchTimer);
+		if (settleTimer !== undefined) clearTimeout(settleTimer);
 		close();
 		popover.remove();
 		control.remove();
