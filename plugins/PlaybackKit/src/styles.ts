@@ -1,4 +1,5 @@
 export const SPEED_CSS = `
+/* Typography uses rem against TIDAL's 14px base (html font-size = --baseFontSize). */
 .lunaspeed-ctl,
 .lunaspeed-popover {
 	--lunaspeed-accent: var(--wave-color-solid-accent-fill, currentColor);
@@ -38,7 +39,7 @@ export const SPEED_CSS = `
 	place-items: center;
 	border-radius: 8px;
 	color: var(--lunaspeed-muted);
-	font-size: 16px;
+	font-size: 1.143rem;
 	font-weight: 500;
 	line-height: 1;
 }
@@ -61,8 +62,8 @@ export const SPEED_CSS = `
 	border-radius: 7px;
 	border: 1px solid transparent;
 	color: var(--lunaspeed-fg);
-	font-size: 13px;
-	font-weight: 650;
+	font-size: 0.929rem;
+	font-weight: 600;
 	letter-spacing: 0.01em;
 	font-variant-numeric: tabular-nums;
 }
@@ -103,6 +104,7 @@ export const SPEED_CSS = `
 	background: var(--lunaspeed-surface);
 	color: var(--lunaspeed-fg);
 	font-family: inherit;
+	line-height: var(--baseLineHeight, 1.43);
 	box-shadow: 0 30px 74px rgba(0, 0, 0, 0.55), 0 1px 0 color-mix(in srgb, var(--lunaspeed-fg) 5%, transparent) inset;
 }
 .lunaspeed-popover[hidden] {
@@ -115,11 +117,11 @@ export const SPEED_CSS = `
 	gap: 12px;
 }
 .lunaspeed-pop-title {
-	font-size: 11px;
+	font-size: 0.786rem;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 	color: var(--lunaspeed-muted);
-	font-weight: 650;
+	font-weight: 600;
 }
 .lunaspeed-reset {
 	margin: 0;
@@ -127,7 +129,7 @@ export const SPEED_CSS = `
 	border: 0;
 	background: transparent;
 	font-family: inherit;
-	font-size: 12px;
+	font-size: 0.857rem;
 	color: var(--lunaspeed-faint);
 	cursor: pointer;
 }
@@ -141,15 +143,15 @@ export const SPEED_CSS = `
 	margin: 10px 0 18px;
 }
 .lunaspeed-value {
-	font-size: 42px;
+	font-size: 2.5rem;
 	line-height: 0.95;
-	font-weight: 650;
+	font-weight: 600;
 	letter-spacing: -0.035em;
 	color: var(--lunaspeed-accent);
 	font-variant-numeric: tabular-nums;
 }
 .lunaspeed-unit {
-	font-size: 23px;
+	font-size: 1.5rem;
 	line-height: 1.1;
 	color: var(--lunaspeed-accent);
 	opacity: 0.85;
@@ -226,7 +228,7 @@ export const SPEED_CSS = `
 	position: absolute;
 	top: 50%;
 	transform: translate(-50%, -50%);
-	font-size: 10px;
+	font-size: 0.714rem;
 	color: var(--lunaspeed-faint);
 	font-variant-numeric: tabular-nums;
 	background: var(--lunaspeed-surface);
@@ -250,7 +252,7 @@ export const SPEED_CSS = `
 }
 .lunaspeed-switch-label {
 	flex: 1;
-	font-size: 13px;
+	font-size: 0.929rem;
 	font-weight: 600;
 	color: var(--lunaspeed-fg);
 }
@@ -305,13 +307,13 @@ export const SPEED_CSS = `
 	display: none;
 }
 .lunaspeed-warning-title {
-	font-size: 12px;
-	font-weight: 650;
+	font-size: 0.857rem;
+	font-weight: 600;
 	color: var(--lunaspeed-fg);
 }
 .lunaspeed-warning-text,
 .lunaspeed-quality-text {
-	font-size: 11px;
+	font-size: 0.786rem;
 	line-height: 1.45;
 	color: var(--lunaspeed-muted);
 }
@@ -324,7 +326,7 @@ export const SPEED_CSS = `
 	background: transparent;
 	color: var(--lunaspeed-accent);
 	font-family: inherit;
-	font-size: 11px;
+	font-size: 0.786rem;
 	font-weight: 600;
 	cursor: pointer;
 	text-decoration: underline;
@@ -355,7 +357,7 @@ export const SPEED_CSS = `
 	border-top: 1px solid var(--lunaspeed-border);
 }
 .lunaspeed-version {
-	font-size: 10px;
+	font-size: 0.714rem;
 	color: var(--lunaspeed-faint);
 	font-variant-numeric: tabular-nums;
 }
@@ -366,7 +368,7 @@ export const SPEED_CSS = `
 	border: 0;
 	background: transparent;
 	font-family: inherit;
-	font-size: 11px;
+	font-size: 0.786rem;
 	color: var(--lunaspeed-muted);
 	cursor: pointer;
 }
@@ -398,7 +400,7 @@ export const SPEED_CSS = `
 	background: transparent;
 	color: var(--lunaspeed-muted);
 	font-family: inherit;
-	font-size: 11px;
+	font-size: 0.786rem;
 	font-weight: 600;
 	padding: 5px 10px;
 	border-radius: 999px;
@@ -434,7 +436,7 @@ export const SPEED_CSS = `
 	background: color-mix(in srgb, var(--lunaspeed-fg) 5%, transparent);
 	color: var(--lunaspeed-fg);
 	font-family: inherit;
-	font-size: 12px;
+	font-size: 0.857rem;
 	padding: 0 8px;
 }
 .lunaspeed-save-input::placeholder {
@@ -446,7 +448,7 @@ export const SPEED_CSS = `
 	background: transparent;
 	color: var(--lunaspeed-fg);
 	font-family: inherit;
-	font-size: 11px;
+	font-size: 0.786rem;
 	border-radius: 8px;
 	padding: 0 10px;
 	cursor: pointer;
@@ -463,7 +465,7 @@ export const SPEED_CSS = `
 	margin-top: 14px;
 }
 .lunaspeed-pitch-label {
-	font-size: 13px;
+	font-size: 0.929rem;
 	font-weight: 600;
 	color: var(--lunaspeed-fg);
 }
@@ -482,7 +484,7 @@ export const SPEED_CSS = `
 	background: transparent;
 	color: var(--lunaspeed-muted);
 	font-family: inherit;
-	font-size: 15px;
+	font-size: 1.071rem;
 	font-weight: 500;
 	line-height: 1;
 	border-radius: 6px;
@@ -499,13 +501,13 @@ export const SPEED_CSS = `
 .lunaspeed-pitch-value {
 	min-width: 44px;
 	text-align: center;
-	font-size: 12px;
+	font-size: 0.857rem;
 	color: var(--lunaspeed-fg);
 	font-variant-numeric: tabular-nums;
 }
 .lunaspeed-lock {
 	margin-top: 10px;
-	font-size: 11px;
+	font-size: 0.786rem;
 	line-height: 1.4;
 	color: var(--lunaspeed-muted);
 }
@@ -514,7 +516,7 @@ export const SPEED_CSS = `
 }
 .lunaspeed-engine {
 	margin-top: 6px;
-	font-size: 11px;
+	font-size: 0.786rem;
 	line-height: 1.4;
 	color: var(--lunaspeed-faint);
 }
