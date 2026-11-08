@@ -113,7 +113,7 @@ const build = async (): Promise<Graph> => {
 const applyParams = (ctx: AudioContext, effects: EffectsSettings): void => {
 	if (graph === undefined) return;
 	const now = ctx.currentTime;
-	const smooth = 0.03;
+	const smooth = 0.06;
 	const g = graph;
 
 	for (let index = 0; index < g.eqFilters.length; index += 1) {

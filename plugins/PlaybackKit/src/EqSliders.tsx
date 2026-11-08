@@ -23,19 +23,23 @@ const EqBand = ({
 	onChange: (value: number) => void;
 }) => {
 	const trackRef = React.useRef<HTMLDivElement>(null);
+	const [dragPercent, setDragPercent] = React.useState<number | null>(null);
 
 	const setFromPointer = (clientY: number): void => {
 		const track = trackRef.current;
 		if (track === null) return;
 		const rect = track.getBoundingClientRect();
-		const ratio = 1 - Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
-		onChange(clampDb(Math.round(EQ_MIN_DB + ratio * RANGE)));
+		const fromTop = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+		setDragPercent(fromTop * 100);
+		onChange(clampDb(Math.round(EQ_MAX_DB - fromTop * RANGE)));
 	};
 
-	const percent = ((value - EQ_MIN_DB) / RANGE) * 100;
-	const center = ((0 - EQ_MIN_DB) / RANGE) * 100;
+	// +12 dB is at the top of the track, -12 dB at the bottom.
+	const percent = dragPercent ?? ((EQ_MAX_DB - value) / RANGE) * 100;
+	const center = 50;
 	const fillTop = Math.min(percent, center);
 	const fillHeight = Math.abs(percent - center);
+	const settling = dragPercent === null;
 
 	return (
 		<div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: 30, opacity: disabled ? 0.4 : 1 }}>
@@ -60,8 +64,14 @@ const EqBand = ({
 					if (disabled || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
 					setFromPointer(event.clientY);
 				}}
-				onPointerUp={(event) => event.currentTarget.releasePointerCapture(event.pointerId)}
-				onPointerCancel={(event) => event.currentTarget.releasePointerCapture(event.pointerId)}
+				onPointerUp={(event) => {
+					if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+					setDragPercent(null);
+				}}
+				onPointerCancel={(event) => {
+					if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+					setDragPercent(null);
+				}}
 				onDoubleClick={() => {
 					if (!disabled) onChange(0);
 				}}
@@ -96,6 +106,7 @@ const EqBand = ({
 						top: `${fillTop}%`,
 						height: `${fillHeight}%`,
 						background: "var(--wave-color-solid-accent-fill, currentColor)",
+						transition: settling ? "top 120ms ease, height 120ms ease" : "none",
 					}}
 				/>
 				<div
@@ -109,6 +120,7 @@ const EqBand = ({
 						borderRadius: "50%",
 						background: "currentColor",
 						boxShadow: "0 0 0 3px color-mix(in srgb, var(--wave-color-solid-accent-fill, currentColor) 22%, transparent), 0 1px 3px rgba(0,0,0,.5)",
+						transition: settling ? "top 120ms ease" : "none",
 					}}
 				/>
 			</div>
