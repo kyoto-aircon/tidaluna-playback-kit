@@ -53,6 +53,7 @@ export interface SpeedControlOptions {
 	restoreQuality?: () => void;
 	presets?: PresetControls;
 	getPitchEngineState?: () => PitchEngineState;
+	onOpen?: () => void;
 }
 
 export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, options: SpeedControlOptions = {}): void => {
@@ -378,6 +379,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		render();
 		renderPlayerState(options.getPlayerKind?.() ?? "unknown");
 		positionPopover();
+		options.onOpen?.();
 		document.addEventListener("pointerdown", onDocumentPointerDown, true);
 		document.addEventListener("keydown", onDocumentKeyDown, true);
 		window.addEventListener("resize", onResize);

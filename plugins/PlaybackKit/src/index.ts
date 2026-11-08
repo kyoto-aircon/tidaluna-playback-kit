@@ -18,7 +18,7 @@ import {
 } from "./debug";
 import { getMediaElements, SpeedController } from "./mediaController";
 import { applyNativeRate, captureNativeComponent, hasNativeInstance, probeNativeComponent } from "./nativePlayer";
-import { getPitchEngineState, setPitchSemitones } from "./pitchEngine";
+import { getPitchEngineState, resetPitchEngine, setPitchSemitones } from "./pitchEngine";
 import { getPlayerKind, setPlayerKind, subscribePlayerKind, type PlayerKind } from "./playerKind";
 import { presetStore, type PlaybackPreset, type PresetValues } from "./presets";
 import { speedStore } from "./state";
@@ -278,6 +278,10 @@ try {
 		restoreQuality,
 		presets: presetControls,
 		getPitchEngineState,
+		onOpen: () => {
+			const semitones = speedStore.get().pitchSemitones;
+			if (semitones !== 0) void setPitchSemitones(semitones, getMediaElements());
+		},
 	});
 	installDebugApi(controller);
 
@@ -306,6 +310,7 @@ try {
 		stopTimeSync();
 		unsubscribe();
 		controller.stop();
+		resetPitchEngine();
 	});
 
 	trace.log("loaded");

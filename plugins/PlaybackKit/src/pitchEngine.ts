@@ -30,7 +30,13 @@ const ensureContext = async (): Promise<AudioContext> => {
 		if (Ctor === undefined) throw new Error("Web Audio is unavailable");
 		context = new Ctor({ latencyHint: "playback" });
 	}
-	if (context.state === "suspended") await context.resume();
+	if (context.state === "suspended") {
+		try {
+			await Promise.race([context.resume(), new Promise((resolve) => setTimeout(resolve, 250))]);
+		} catch {
+			// A gesture is required; attach() reports this without touching the graph.
+		}
+	}
 	return context;
 };
 
@@ -53,6 +59,10 @@ const pickElement = (elements: HTMLMediaElement[]): HTMLMediaElement | undefined
 
 const attach = async (semitones: number, elements: HTMLMediaElement[]): Promise<void> => {
 	const ctx = await ensureContext();
+	if (ctx.state !== "running") {
+		state = { status: "waiting", reason: "audio context suspended (interact with the page)", semitones, context: ctx.state, attached: attachedCount };
+		return;
+	}
 	const worklet = await ensureNode();
 	const element = pickElement(elements);
 	if (element === undefined) {
@@ -93,4 +103,13 @@ export const setPitchSemitones = async (semitones: number, elements: HTMLMediaEl
 		state = { status: "unavailable", reason: message, semitones, context: context?.state, attached: attachedCount };
 		debugLog("error", "pitch engine unavailable", { error: message });
 	}
+};
+
+/** Leaves the graph connected but transparent. Called when the plugin unloads. */
+export const resetPitchEngine = (): void => {
+	if (node !== undefined) {
+		const ratio = node.parameters.get("ratio");
+		if (ratio !== undefined) ratio.value = 1;
+	}
+	state = { ...state, status: node === undefined ? "idle" : "ready", semitones: 0, reason: undefined, context: context?.state, attached: attachedCount };
 };
