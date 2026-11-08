@@ -35,3 +35,8 @@ Single-plugin TidaLuna repo. Build with `luna/buildPlugins`; one plugin lives in
 - Colours/fonts come from TIDAL design tokens (`--wave-color-solid-accent-fill`, `--wave-color-solid-contrast-fill`, `--wave-color-solid-base-brighter`, `--wave-color-opacity-contrast-fill-thin`) copied from the footer's computed style onto `.lunaspeed-ctl` and `.lunaspeed-popover`; never hardcode a theme colour.
 - The slider is a custom rail/fill/thumb with an invisible `input[type=range]` on top. Fill/thumb use `calc(8px + (100% - 16px) * var(--lunaspeed-pos))` so the fill ends at the thumb centre. While dragging, `render()` must not write the slider value or it jitters.
 - Switching to the browser player stores the previous streaming quality in `localStorage` (`tidaluna.playback-speed.previous-quality`) so the popover can restore it.
+
+## Scrubber sync
+
+- TIDAL computes the displayed position as `latestCurrentTime + |Date.now() - latestCurrentTimeSyncTimestamp|/1000`; it assumes 1x and only corrects on pause/seek.
+- `timeSync.ts` dispatches `playbackControls/TIME_UPDATE` (number payload) every 100 ms while speed != 1 and playbackState is PLAYING, using the media element currentTime or activePlayer.currentTime for native.

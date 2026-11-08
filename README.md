@@ -62,6 +62,7 @@ For a local dev loop, add `http://127.0.0.1:3000` as a store URL in Luna and ena
 - `src/speed.ts` — pure speed maths: snapping, clamping, log-scale mapping, tick values.
 - `src/state.ts` — persisted store (`localStorage`, key `tidaluna.playback-speed.v1`).
 - `src/mediaController.ts` — attaches to `#tidal-player-root video` (TIDAL's `video-one` / `video-two`) and keeps `playbackRate` + `preservesPitch` applied.
+- `src/timeSync.ts` — TIDAL draws the scrubber as `latestCurrentTime + wall-clock elapsed` (a 1× assumption). At any other rate it re-dispatches `playbackControls/TIME_UPDATE` with the real position every 100 ms so audio and progress stay aligned.
 - `src/playerKind.ts` / `src/nativePlayer.ts` — detect native vs shaka vs browser player, probe the native component and drive a native rate method if one ever appears.
 - `src/control.ts` — pill, steppers and popover; mounts into `[data-test="footer-player"] [class*="utilityButtons"]`.
 - `src/Settings.tsx` — Luna settings tab.

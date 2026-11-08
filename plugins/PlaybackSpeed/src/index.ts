@@ -20,6 +20,7 @@ import { getMediaElements, SpeedController } from "./mediaController";
 import { applyNativeRate, captureNativeComponent, hasNativeInstance, probeNativeComponent } from "./nativePlayer";
 import { getPlayerKind, setPlayerKind, subscribePlayerKind, type PlayerKind } from "./playerKind";
 import { speedStore } from "./state";
+import { startTimeSync, syncOnce } from "./timeSync";
 
 export { Settings } from "./Settings";
 
@@ -113,6 +114,66 @@ const detectPlayerKind = (): PlayerKind => {
 	return "unknown";
 };
 
+interface ActivePlayerLike {
+	name?: string;
+	currentTime?: number;
+	playbackState?: string;
+}
+
+let activePlayerHolder: { activePlayer?: ActivePlayerLike } | undefined;
+
+const getActivePlayer = (): ActivePlayerLike | undefined => {
+	activePlayerHolder ??= findModuleByProperty<{ activePlayer?: ActivePlayerLike }>(
+		(key, value) => key === "activePlayer" && typeof value === "object" && value !== null,
+	) as { activePlayer?: ActivePlayerLike } | undefined;
+	return activePlayerHolder?.activePlayer;
+};
+
+/** Media position of whatever is actually playing (native player or media element). */
+const getActualPosition = (): number | null => {
+	if (getPlayerKind() === "native") {
+		const time = getActivePlayer()?.currentTime;
+		return typeof time === "number" && Number.isFinite(time) ? time : null;
+	}
+	const elements = getMediaElements();
+	const element = elements.find((candidate) => !candidate.paused && candidate.readyState > 0) ?? elements.find((candidate) => candidate.readyState > 0);
+	return element === undefined ? null : element.currentTime;
+};
+
+const isPlaying = (): boolean => {
+	try {
+		const controls = (redux.store.getState() as { playbackControls?: { playbackState?: string } }).playbackControls;
+		return controls?.playbackState === "PLAYING";
+	} catch {
+		return false;
+	}
+};
+
+const dispatchTimeUpdate = (time: number): void => {
+	const action = (redux.actions as unknown as Record<string, (payload: number) => unknown>)["playbackControls/TIME_UPDATE"];
+	if (typeof action === "function") action(time);
+	else (redux.store.dispatch as (value: unknown) => unknown)({ type: "playbackControls/TIME_UPDATE", payload: time });
+};
+
+/** What the scrubber currently shows: TIDAL adds wall-clock seconds to the last sync. */
+const readUiPosition = (): number | null => {
+	try {
+		const controls = (
+			redux.store.getState() as {
+				playbackControls?: { latestCurrentTime?: number; latestCurrentTimeSyncTimestamp?: number; playbackState?: string };
+			}
+		).playbackControls;
+		if (controls === undefined) return null;
+		const base = controls.latestCurrentTime ?? 0;
+		if (controls.playbackState !== "PLAYING") return base;
+		return base + Math.abs(Date.now() - (controls.latestCurrentTimeSyncTimestamp ?? Date.now())) / 1000;
+	} catch {
+		return null;
+	}
+};
+
+const timeSyncDeps = { getSpeed: () => speedStore.get().speed, isPlaying, getPosition: getActualPosition, dispatchTimeUpdate };
+
 const useBrowserPlayer = (): void => {
 	try {
 		const state = redux.store.getState() as { settings?: { quality?: { streaming?: string } } };
@@ -164,6 +225,9 @@ try {
 		kind: getPlayerKind(),
 		native: probeNativeComponent(),
 		nativeInstance: hasNativeInstance(),
+		speed: speedStore.get().speed,
+		uiTime: readUiPosition(),
+		actualTime: getActualPosition(),
 	}));
 
 	captureNativeComponent();
@@ -183,6 +247,7 @@ try {
 		debugLog("info", "settings changed", { speed: settings.speed, pitchShifts: settings.pitchShifts, bounds: settings.bounds });
 		controller.apply();
 		if (getPlayerKind() === "native") applyNativeRate(settings.speed);
+		syncOnce(timeSyncDeps);
 	});
 	setupSpeedControl(unloads, speedStore, {
 		getPlayerKind,
@@ -195,6 +260,7 @@ try {
 
 	// TIDAL swaps media elements between tracks and re-renders the footer.
 	const scanTimer = setInterval(() => controller.scan(), SCAN_INTERVAL_MS);
+	const stopTimeSync = startTimeSync(timeSyncDeps);
 	setPlayerKind(detectPlayerKind());
 	const playerTimer = setInterval(() => {
 		captureNativeComponent();
@@ -210,6 +276,7 @@ try {
 	unloads.add(() => {
 		clearInterval(scanTimer);
 		clearInterval(playerTimer);
+		stopTimeSync();
 		unsubscribe();
 		controller.stop();
 	});
