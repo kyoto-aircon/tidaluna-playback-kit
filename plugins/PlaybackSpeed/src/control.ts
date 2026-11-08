@@ -1,6 +1,7 @@
 import type { LunaUnload } from "@luna/core";
 import { StyleTag } from "@luna/lib";
 
+import { copyReport, debugLog, PLUGIN_VERSION } from "./debug";
 import { formatSpeed, positionToSpeed, speedLabel, speedToPosition, tickValues } from "./speed";
 import type { SpeedStore } from "./state";
 import { SPEED_CSS } from "./styles";
@@ -63,6 +64,10 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore): 
 		<div class="lunaspeed-switch-row">
 			<span class="lunaspeed-switch-label">Pitch follows speed</span>
 			<button class="lunaspeed-switch" type="button" role="switch" aria-checked="false" aria-label="Pitch follows speed"></button>
+		</div>
+		<div class="lunaspeed-foot">
+			<span class="lunaspeed-version">v${PLUGIN_VERSION}</span>
+			<button class="lunaspeed-copy" type="button">Copy diagnostics</button>
 		</div>`;
 
 	const readout = popover.querySelector<HTMLElement>(".lunaspeed-value") as HTMLElement;
@@ -70,6 +75,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore): 
 	const ticks = popover.querySelector<HTMLElement>(".lunaspeed-ticks") as HTMLElement;
 	const pitchSwitch = popover.querySelector<HTMLButtonElement>(".lunaspeed-switch") as HTMLButtonElement;
 	const resetButton = popover.querySelector<HTMLButtonElement>(".lunaspeed-reset") as HTMLButtonElement;
+	const copyButton = popover.querySelector<HTMLButtonElement>(".lunaspeed-copy") as HTMLButtonElement;
 
 	let ticksKey = "";
 	let isOpen = false;
@@ -150,6 +156,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore): 
 
 	const open = (): void => {
 		if (isOpen) return;
+		debugLog("debug", "popover open");
 		isOpen = true;
 		popover.hidden = false;
 		pill.dataset.open = "true";
@@ -206,6 +213,20 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore): 
 	pitchSwitch.addEventListener("click", () => store.setPitchShifts(!store.get().pitchShifts));
 	resetButton.addEventListener("click", () => store.reset());
 
+	let copyResetTimer: ReturnType<typeof setTimeout> | undefined;
+	copyButton.addEventListener("click", async () => {
+		if (copyResetTimer !== undefined) clearTimeout(copyResetTimer);
+		copyButton.disabled = true;
+		copyButton.textContent = "Copying…";
+		const copied = await copyReport(store.get());
+		debugLog(copied ? "info" : "error", "diagnostics copied", { copied });
+		copyButton.textContent = copied ? "Copied" : "Copy failed";
+		copyResetTimer = setTimeout(() => {
+			copyButton.textContent = "Copy diagnostics";
+			copyButton.disabled = false;
+		}, 1800);
+	});
+
 	ensureMounted();
 	render();
 
@@ -216,6 +237,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore): 
 
 	unloads.add(() => {
 		clearInterval(mountTimer);
+		if (copyResetTimer !== undefined) clearTimeout(copyResetTimer);
 		close();
 		popover.remove();
 		control.remove();

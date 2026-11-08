@@ -16,3 +16,9 @@ Single-plugin TidaLuna repo. Build with `luna/buildPlugins`; one plugin lives in
 - The footer is `[data-test="footer-player"]`; the control is inserted into `[class*="utilityButtons"]` before the volume (`[class*="sliderContainer"]`).
 - Chromium clamps effective rate to 0.0625×–16×.
 - Luna loads plugin exports `unloads` and `Settings`; `dist/*.json` is the manifest carrying the build hash.
+
+## Diagnostics
+
+- `debug.ts` keeps a 500-entry ring buffer and mirrors to console with the `[PlaybackSpeed]` prefix.
+- `window.__playbackSpeed` exposes `logs()`, `logText()`, `report()`, `copy()`, `selectors()`, `store`.
+- The popover and the settings tab both have a "Copy diagnostics" action; reports include a 1.5 s currentTime progression probe and the TIDAL `activePlayer` probe. Use those first when a speed change doesn't reach the audio.

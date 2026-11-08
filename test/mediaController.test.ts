@@ -5,6 +5,7 @@ import { SpeedController, type MediaTarget } from "../plugins/PlaybackSpeed/src/
 
 class FakeMedia extends EventTarget {
 	playbackRate = 1;
+	defaultPlaybackRate = 1;
 	preservesPitch = true;
 	webkitPreservesPitch = true;
 
@@ -29,6 +30,7 @@ describe("SpeedController", () => {
 		controller.start();
 
 		assert.equal(media.playbackRate, 1.5);
+		assert.equal(media.defaultPlaybackRate, 1.5, "default rate keeps Shaka from resetting on load");
 		assert.equal(media.preservesPitch, true);
 	});
 
@@ -55,6 +57,7 @@ describe("SpeedController", () => {
 		media.playbackRate = 1;
 		media.dispatchEvent(new Event("ratechange"));
 		assert.equal(media.playbackRate, 1.25);
+		controller.stop();
 	});
 
 	it("attaches to elements that appear later", () => {
@@ -90,6 +93,7 @@ describe("SpeedController", () => {
 
 		controller.stop();
 		assert.equal(media.playbackRate, 1);
+		assert.equal(media.defaultPlaybackRate, 1);
 		assert.equal(media.preservesPitch, true);
 		assert.equal(media.webkitPreservesPitch, true);
 

@@ -260,4 +260,39 @@ export const SPEED_CSS = `
 	outline: 2px solid #4de3c0;
 	outline-offset: 2px;
 }
+.lunaspeed-foot {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: 10px;
+	padding-top: 10px;
+	border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+.lunaspeed-version {
+	font-size: 10px;
+	color: #4d4d57;
+	font-variant-numeric: tabular-nums;
+}
+.lunaspeed-copy {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	font-family: inherit;
+	font-size: 11px;
+	color: #9a9aa4;
+	cursor: pointer;
+}
+.lunaspeed-copy:hover {
+	color: #fff;
+}
+.lunaspeed-copy:disabled {
+	color: #6d6d78;
+	cursor: default;
+}
+.lunaspeed-copy:focus-visible {
+	outline: 2px solid #4de3c0;
+	outline-offset: 2px;
+}
 `;

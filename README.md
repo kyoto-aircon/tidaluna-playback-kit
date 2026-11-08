@@ -31,6 +31,18 @@ A small pill sits beside the volume control, shows the live rate, and opens a lo
 - TIDAL plays through hidden `<video>` elements driven by Shaka. The plugin sets `playbackRate` on those elements and re-asserts it when TIDAL resets them on track load. If TIDAL falls back to its native/exclusive player, that player may ignore the element rate.
 - With TIDAL's audio spectrum visualiser enabled, audio can be routed through Web Audio, which may bypass pitch preservation.
 
+## Troubleshooting / diagnostics
+
+If the speed doesn't change, open the pill and press **Copy diagnostics**. It copies a report containing:
+
+- plugin version, URL, UA, settings
+- selector counts for `#tidal-player-root`, the media elements and the footer
+- a snapshot of every `video` / `audio` element (`readyState`, `playbackRate`, `defaultPlaybackRate`, `currentTime`, `src`, parent)
+- a 1.5 s progression probe: `observedRate` vs `expectedRate` (if `observedRate` stays 0 while audio plays, TIDAL is not using these elements)
+- the TIDAL `activePlayer` probe (name, methods, state) plus the last 500 log lines
+
+Paste that into a bug report. In DevTools the same data is on `window.__playbackSpeed` (`logs()`, `report()`, `copy()`, `selectors()`), and every entry is logged to the console with the `[PlaybackSpeed]` prefix.
+
 ## Development
 
 ```sh

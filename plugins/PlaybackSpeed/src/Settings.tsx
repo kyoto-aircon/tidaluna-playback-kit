@@ -3,6 +3,7 @@ import React from "react";
 import { LunaButtonSetting, LunaSettings, LunaSwitchSetting, LunaTextSetting } from "@luna/ui";
 
 import { formatSpeed } from "./speed";
+import { copyReport } from "./debug";
 import { speedStore } from "./state";
 
 const parsePositive = (raw: string): number | undefined => {
@@ -12,7 +13,13 @@ const parsePositive = (raw: string): number | undefined => {
 
 export const Settings = () => {
 	const [settings, setSettings] = React.useState(speedStore.get);
+	const [copyStatus, setCopyStatus] = React.useState("Copy diagnostics");
 	React.useEffect(() => speedStore.subscribe(setSettings), []);
+	React.useEffect(() => {
+		if (copyStatus === "Copy diagnostics") return;
+		const timer = setTimeout(() => setCopyStatus("Copy diagnostics"), 1800);
+		return () => clearTimeout(timer);
+	}, [copyStatus]);
 
 	const { bounds, pitchShifts } = settings;
 
@@ -55,6 +62,16 @@ export const Settings = () => {
 				onChange={(e: React.ChangeEvent<HTMLInputElement>) => speedStore.setPitchShifts(e.target.checked)}
 			/>
 			<LunaButtonSetting title="Reset speed" desc="Return to 1.00×." children="Reset" onClick={() => speedStore.reset()} />
+			<LunaButtonSetting
+				title="Diagnostics"
+				desc="Copy the player/media state and recent logs, then paste them into a bug report."
+				children={copyStatus}
+				onClick={async () => {
+					setCopyStatus("Copying…");
+					const copied = await copyReport(speedStore.get());
+					setCopyStatus(copied ? "Copied" : "Copy failed");
+				}}
+			/>
 		</LunaSettings>
 	);
 };
