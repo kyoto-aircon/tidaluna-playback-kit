@@ -61,7 +61,6 @@ export const Settings = () => {
 	}, [configStatus]);
 
 	const { bounds, pitchShifts, developerMode, effects } = settings;
-	const effectsLocked = settings.presetId !== null;
 
 	const setEq = (patch: Partial<typeof effects.eq>) => speedStore.setEffects({ ...effects, eq: { ...effects.eq, ...patch } });
 	const setDelay = (patch: Partial<typeof effects.delay>) => speedStore.setEffects({ ...effects, delay: { ...effects.delay, ...patch } });
@@ -161,12 +160,11 @@ export const Settings = () => {
 						title="Pitch follows speed"
 						desc="Chipmunk / slow-mo. Clears any custom pitch shift."
 						checked={pitchShifts}
-						disabled={effectsLocked}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => speedStore.setPitchShifts(e.target.checked)}
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => speedStore.setPitchShifts(e.target.checked)}
 					/>
 					<LunaSetting title="Reset" desc="Back to 1.00×, no pitch shift, effects unchanged.">
 						<div style={actions}>
-							<LunaButton size="small" variant="outlined" disabled={effectsLocked} onClick={() => speedStore.reset()}>
+							<LunaButton size="small" variant="outlined"  onClick={() => speedStore.reset()}>
 								Reset playback
 							</LunaButton>
 						</div>
@@ -244,15 +242,14 @@ export const Settings = () => {
 						title="Equalizer"
 						desc="8 bands, 62 Hz to 8 kHz, ±12 dB. Drag a band; double-click resets it."
 						checked={effects.eq.enabled}
-						disabled={effectsLocked}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEq({ enabled: e.target.checked })}
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEq({ enabled: e.target.checked })}
 					/>
 					<LunaSetting title="Bands" desc="Shift+arrow for 3 dB steps.">
-						<EqSliders eq={effects.eq} disabled={!effects.eq.enabled || effectsLocked} onChange={(bands) => setEq({ bands })} />
+						<EqSliders eq={effects.eq} disabled={!effects.eq.enabled} onChange={(bands) => setEq({ bands })} />
 					</LunaSetting>
 					<LunaSetting title="Flatten" desc="Set every band to 0 dB.">
 						<div style={actions}>
-							<LunaButton size="small" variant="outlined" disabled={!effects.eq.enabled || effectsLocked} onClick={() => setEq({ bands: Array.from({ length: EQ_BANDS }, () => 0) })}>
+							<LunaButton size="small" variant="outlined" disabled={!effects.eq.enabled} onClick={() => setEq({ bands: Array.from({ length: EQ_BANDS }, () => 0) })}>
 								Flatten EQ
 							</LunaButton>
 						</div>
@@ -261,15 +258,13 @@ export const Settings = () => {
 						title="Delay"
 						desc="Feedback delay."
 						checked={effects.delay.enabled}
-						disabled={effectsLocked}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDelay({ enabled: e.target.checked })}
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDelay({ enabled: e.target.checked })}
 					/>
 					<LunaTextSetting
 						title="Delay time (ms)"
 						defaultValue={String(Math.round(effects.delay.timeMs))}
 						inputProps={{ inputMode: "numeric" }}
-						disabled={effectsLocked}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
 							const value = parseNumber(e.target.value);
 							if (value !== undefined) setDelay({ timeMs: Math.max(20, Math.min(2000, value)) });
 						}}
@@ -278,8 +273,7 @@ export const Settings = () => {
 						title="Delay feedback (%)"
 						defaultValue={String(Math.round(effects.delay.feedback * 100))}
 						inputProps={{ inputMode: "numeric" }}
-						disabled={effectsLocked}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
 							const value = parseNumber(e.target.value);
 							if (value !== undefined) setDelay({ feedback: Math.max(0, Math.min(90, value)) / 100 });
 						}}
@@ -288,8 +282,7 @@ export const Settings = () => {
 						title="Delay mix (%)"
 						defaultValue={String(Math.round(effects.delay.mix * 100))}
 						inputProps={{ inputMode: "numeric" }}
-						disabled={effectsLocked}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
 							const value = parseNumber(e.target.value);
 							if (value !== undefined) setDelay({ mix: Math.max(0, Math.min(100, value)) / 100 });
 						}}
@@ -298,15 +291,13 @@ export const Settings = () => {
 						title="Reverb"
 						desc="Generated impulse response."
 						checked={effects.reverb.enabled}
-						disabled={effectsLocked}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReverb({ enabled: e.target.checked })}
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReverb({ enabled: e.target.checked })}
 					/>
 					<LunaTextSetting
 						title="Reverb decay (s)"
 						defaultValue={String(effects.reverb.decay)}
 						inputProps={{ inputMode: "decimal" }}
-						disabled={effectsLocked}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
 							const value = parseNumber(e.target.value);
 							if (value !== undefined) setReverb({ decay: Math.max(0.2, Math.min(8, value)) });
 						}}
@@ -315,8 +306,7 @@ export const Settings = () => {
 						title="Reverb mix (%)"
 						defaultValue={String(Math.round(effects.reverb.mix * 100))}
 						inputProps={{ inputMode: "numeric" }}
-						disabled={effectsLocked}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
 							const value = parseNumber(e.target.value);
 							if (value !== undefined) setReverb({ mix: Math.max(0, Math.min(100, value)) / 100 });
 						}}
