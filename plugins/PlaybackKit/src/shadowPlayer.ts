@@ -158,7 +158,7 @@ const applyRate = async (settings: SpeedSettings): Promise<void> => {
 	}
 };
 
-const startAt = async (position: number, followNative = true): Promise<void> => {
+const startAt = async (position: number, followNative = true, reason = "start"): Promise<void> => {
 	if (channels === undefined) return;
 	const ctx = await ensureContext();
 	if (ctx.state !== "running") throw new Error(`audio context is ${ctx.state}`);
@@ -206,7 +206,7 @@ const startAt = async (position: number, followNative = true): Promise<void> => 
 		deps?.playNativeAt?.(start, 0);
 		nativePaused = false;
 	}
-	debugLog("info", "shadow source started", { offset: Number(start.toFixed(3)), rate: speed, pitch });
+	debugLog("info", "shadow source started", { offset: Number(start.toFixed(3)), rate: speed, pitch, reason });
 };
 
 const readAll = async (id: number, total: number): Promise<Uint8Array> => {
@@ -359,7 +359,7 @@ const runTick = async (): Promise<void> => {
 	if (seek !== undefined && seek.at !== lastSeekAt) {
 		lastSeekAt = seek.at;
 		if (channels !== undefined) {
-			if (userPlaying) await startAt(seek.time, false);
+			if (userPlaying) await startAt(seek.time, false, "seek");
 			else {
 				if (sourcePlaying) stopSource();
 				sourceOffset = Math.max(0, seek.time);
@@ -399,7 +399,7 @@ const runTick = async (): Promise<void> => {
 
 	if (fast) {
 		if (!sourcePlaying) {
-			await startAt(sourceOffset, false);
+			await startAt(sourceOffset, false, "resume-fast");
 			return;
 		}
 		if (currentPosition() >= trackDuration - 0.06) {
@@ -420,12 +420,12 @@ const runTick = async (): Promise<void> => {
 	}
 	setMuted(true);
 	if (!sourcePlaying) {
-		await startAt(native + 0.02);
+		await startAt(native + 0.02, true, "start-native");
 		return;
 	}
 	if (Math.abs(currentPosition() - native) > DRIFT_SECONDS) {
 		debugLog("info", "shadow resync", { ours: Number(currentPosition().toFixed(3)), native: Number(native.toFixed(3)) });
-		await startAt(native + 0.02);
+		await startAt(native + 0.02, true, "drift");
 	}
 };
 

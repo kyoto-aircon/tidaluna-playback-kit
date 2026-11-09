@@ -90,6 +90,13 @@ const patchStreamPrototype = (player: object): void => {
 	const prototype = Object.getPrototypeOf(player) as Record<string, unknown> | null;
 	if (prototype === null || prototype === Object.prototype) return;
 	if (prototype.__pbkStreamPatched === true) return;
+	const callerStack = (): string[] => {
+		try {
+			return (new Error().stack ?? "").split("\n").slice(2, 7).map((line) => line.trim());
+		} catch {
+			return [];
+		}
+	};
 	const wrap = (method: "load" | "next", slot: "load" | "preload"): void => {
 		const original = prototype[method];
 		if (typeof original !== "function") return;
@@ -114,7 +121,10 @@ const patchStreamPrototype = (player: object): void => {
 	if (typeof originalSeek === "function") {
 		prototype.seek = function patchedSeek(this: unknown, ...args: unknown[]): unknown {
 			const time = Number(args[0]);
-			if (Number.isFinite(time)) streamState.seek = { time: Math.max(0, time), at: Date.now() };
+			if (Number.isFinite(time)) {
+				streamState.seek = { time: Math.max(0, time), at: Date.now() };
+				debugLog("info", "native seek", { time: Math.max(0, time), caller: callerStack() });
+			}
 			return (originalSeek as (...inner: unknown[]) => unknown).apply(this, args);
 		};
 	}
@@ -123,6 +133,7 @@ const patchStreamPrototype = (player: object): void => {
 		if (typeof original !== "function") return;
 		prototype[method] = function patchedTransport(this: unknown, ...args: unknown[]): unknown {
 			streamState.transport = { value, at: Date.now() };
+			debugLog("info", "native transport", { value, caller: callerStack() });
 			return (original as (...inner: unknown[]) => unknown).apply(this, args);
 		};
 	};
