@@ -43,7 +43,7 @@ current audio chain — all following TIDAL's theme, fonts and type scale.
 | ⭐ **Presets** | Save speed, pitch and effects. Ten built-ins showcase the features — Nightcore, Daycore, Slowcore, Chipmunk, Vaporwave, Big Bass, Submerge, 8D Orbit, Dub Echo, Clear Voice — hide them all with one switch if you only want your own. Editing anything while a preset is active marks it with `*` (unsaved). **Save preset** pre-fills the active name: same name overwrites a custom preset, a built-in pre-fills `<name> (edited)` to save a copy. Choose **Custom** to clear it. |
 | 🎨 **Theme-aware** | Colours, fonts and rem sizes come from TIDAL's own tokens and the app root — TidaLuna themes apply automatically. |
 | 🧭 **Honest scrubber** | At any rate other than 1× the plugin re-feeds the real position so audio and progress bar stay aligned. |
-| 🩺 **Developer mode** | Off by default. Enables logs, Copy diagnostics and an **audio engine self-test** that measures captured RMS. |
+| 🩺 **Developer mode** | Off by default. Enables logs, Copy diagnostics, an **audio engine self-test** that measures captured RMS, and a **native stream probe** that records the lossless `media.load` host/format and fetches the first 128 KiB (signed URLs are redacted). |
 
 ## How it works
 
@@ -175,6 +175,7 @@ last change; edit the file with TIDAL closed or press **Reload** afterwards.
 |---|---|---|
 | Speed, pitch or effects do nothing | TIDAL is on the native lossless player | Popover → **Use browser player** (High quality) |
 | Effects/pitch still silent after switching | Web Audio capture blocked (DRM or element already connected) | Enable **Developer mode** → **Audio engine self-test**; `rms ≈ 0` means capture is blocked |
+| Want to debug native lossless playback | The native player is a separate process; the plugin can only see its `media.load` command | Enable **Developer mode**, play a LOSSLESS track, then **Copy diagnostics**. The `nativeProbe` block shows the stream host/format and whether a 128 KiB range fetch returned `fLaC`. |
 | Quality badge shows `96 kbps` | Older builds sent the wrong `SET_STREAMING_QUALITY` payload, so the quality never applied | Fixed in 2.14.2; otherwise pick **High** in TIDAL settings |
 | Progress bar drifts from audio | Shouldn't happen — the plugin re-feeds the position at non-1× | If it does, enable Developer mode and send diagnostics |
 | Pitch sounds artefacty | Granular shifter at large offsets | Use smaller offsets; a smooth algorithm is on the roadmap |

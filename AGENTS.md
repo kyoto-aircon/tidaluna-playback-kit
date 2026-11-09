@@ -93,3 +93,10 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 ## Streaming quality
 
 - TIDAL’s `settings/SET_STREAMING_QUALITY` action payload is an object `{ to: quality }`; the reducer does `payload.to` and the side-effect updates the session. Sending a bare string leaves `quality.streaming` undefined and playback falls back to **96 kbps**. `setStreamingQuality` must keep the `{ to }` shape for HIGH/restore.
+
+## Native player probe (developer mode)
+
+- `nativeProbe.native.ts` runs in main and listens on the `player.message` IPC channel. It records `media.load` / `media.preload` descriptors and performs one 128 KiB range fetch per load.
+- Signed stream URLs never cross the bridge: only origin, extension, path length, query **names**, `streamFormat`, and whether `encryptionKey` is non-empty are returned. The fetch keeps headers and the first bytes (`fLaC` detection).
+- Started only when developer mode is on (Electron trust prompt once per build) and stopped on unload. `debug.ts` awaits it via `registerReportProbe` and prints it as the `nativeProbe` block in Copy diagnostics.
+- Purpose: validate the shadow-player idea (same FLAC URL fetchable/decodable) without touching audio. If `fetch.status` is 403/401 or the head is not `fLaC`, the tap needs a session header or a different URL.

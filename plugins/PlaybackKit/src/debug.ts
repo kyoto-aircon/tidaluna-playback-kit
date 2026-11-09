@@ -1,4 +1,4 @@
-export const PLUGIN_VERSION = "2.14.2";
+export const PLUGIN_VERSION = "2.14.3";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -146,6 +146,27 @@ export const registerReportExtras = (extras: () => Record<string, unknown>): voi
 	reportExtras = extras;
 };
 
+let reportProbe: (() => Promise<unknown>) | undefined;
+
+/** Set by index.ts for async probes that need the main process (native stream). */
+export const registerReportProbe = (probe: () => Promise<unknown>): void => {
+	reportProbe = probe;
+};
+
+const REPORT_PROBE_TIMEOUT_MS = 4000;
+
+const readReportProbe = async (): Promise<unknown> => {
+	if (reportProbe === undefined) return { registered: false };
+	try {
+		return await Promise.race([
+			reportProbe(),
+			new Promise<never>((_, reject) => setTimeout(() => reject(new Error("native probe timed out")), REPORT_PROBE_TIMEOUT_MS)),
+		]);
+	} catch (err) {
+		return { error: String(err) };
+	}
+};
+
 export const getReportExtras = (): Record<string, unknown> => {
 	try {
 		return reportExtras?.() ?? {};
@@ -225,6 +246,7 @@ export const collectThemeSnapshot = (): unknown => {
 export const buildReport = async (settings: unknown): Promise<string> => {
 	debugLog("info", "building diagnostics report");
 	const progression = await probeProgression();
+	const native = await readReportProbe();
 	const header = [
 		`Playback Kit v${PLUGIN_VERSION}`,
 		`at: ${new Date().toISOString()}`,
@@ -234,6 +256,7 @@ export const buildReport = async (settings: unknown): Promise<string> => {
 		`settings: ${JSON.stringify(safeData(settings))}`,
 		`selectors: ${JSON.stringify(snapshotSelectors())}`,
 		`player: ${JSON.stringify(getReportExtras())}`,
+		`nativeProbe: ${JSON.stringify(native)}`,
 		`tidal: ${JSON.stringify(probeTidal())}`,
 		`progression: ${JSON.stringify(progression)}`,
 		`media: ${JSON.stringify(snapshotMedia())}`,
