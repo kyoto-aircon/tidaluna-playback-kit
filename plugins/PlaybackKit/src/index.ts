@@ -26,6 +26,7 @@ import { getMediaElements, SpeedController } from "./mediaController";
 import { applyNativeRate, captureNativeComponent, hasNativeInstance, probeNativeComponent } from "./nativePlayer";
 import { getPitchEngineState, resetPitchEngine, setPitchSemitones } from "./pitchEngine";
 import { getPlayerKind, setPlayerKind, subscribePlayerKind, type PlayerKind } from "./playerKind";
+import { saveActivePreset } from "./presetActions";
 import { presetStore, type PlaybackPreset, type PresetValues } from "./presets";
 import { speedStore } from "./state";
 import { startTimeSync, syncOnce } from "./timeSync";
@@ -367,6 +368,10 @@ try {
 		},
 		clear: () => speedStore.clearPreset(),
 		save: (name: string, values: PresetValues) => presetStore.save(name, values),
+		saveActive: (preset: PlaybackPreset) => {
+			const saved = saveActivePreset(speedStore, presetStore, preset);
+			debugLog("info", "saved preset from live state", { id: saved?.id, builtin: preset.builtin === true });
+		},
 	};
 	setupSpeedControl(unloads, speedStore, {
 		getPlayerKind,

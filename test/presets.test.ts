@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { DEFAULT_EFFECTS } from "../plugins/PlaybackKit/src/effectsSettings";
-import { createPresetStore, NIGHTCORE_ID, NIGHTCORE_PRESET, PRESETS_KEY, type PresetStorage } from "../plugins/PlaybackKit/src/presets";
+import { createPresetStore, NIGHTCORE_ID, NIGHTCORE_PRESET, presetMatches, PRESETS_KEY, type PresetStorage } from "../plugins/PlaybackKit/src/presets";
 
 const fakeStorage = (initial?: string): PresetStorage & { value: string | null } => ({
 	value: initial ?? null,
@@ -120,5 +120,14 @@ describe("preset editing", () => {
 		store.save("Old", values);
 		store.replace([NIGHTCORE_PRESET, { id: "new-1", name: "New", speed: 2, pitchShifts: false, pitchSemitones: 1, effects: DEFAULT_EFFECTS }]);
 		assert.deepEqual(store.get().map((preset) => preset.name), ["Nightcore", "New"]);
+	});
+});
+
+describe("preset matching", () => {
+	it("matches speed, pitch mode, offset and effects", () => {
+		const state = { speed: 1.35, pitchShifts: true, pitchSemitones: 0, effects: DEFAULT_EFFECTS };
+		assert.equal(presetMatches(NIGHTCORE_PRESET, state), true);
+		assert.equal(presetMatches(NIGHTCORE_PRESET, { ...state, speed: 1.4 }), false);
+		assert.equal(presetMatches(NIGHTCORE_PRESET, { ...state, effects: { ...DEFAULT_EFFECTS, reverb: { enabled: true, decay: 3, mix: 0.4 } } }), false);
 	});
 });

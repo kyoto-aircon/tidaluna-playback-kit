@@ -91,6 +91,16 @@ const parsePresets = (raw: string | null): PlaybackPreset[] => {
 	return presets;
 };
 
+/** True when the live playback/effect state matches the preset snapshot. */
+export const presetMatches = (
+	preset: PlaybackPreset,
+	state: { speed: number; pitchShifts: boolean; pitchSemitones: number; effects: EffectsSettings },
+): boolean =>
+	preset.speed === state.speed &&
+	preset.pitchShifts === state.pitchShifts &&
+	preset.pitchSemitones === state.pitchSemitones &&
+	JSON.stringify(preset.effects) === JSON.stringify(state.effects);
+
 export const createPresetStore = (storage: PresetStorage, key: string = PRESETS_KEY) => {
 	let customs = parsePresets(storage.getItem(key));
 	const listeners = new Set<() => void>();

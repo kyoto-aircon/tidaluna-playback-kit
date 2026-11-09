@@ -5,7 +5,7 @@ import { copyReport, debugLog, PLUGIN_VERSION } from "./debug";
 import { formatSemitones, MIN_SEMITONES, MAX_SEMITONES } from "./pitch";
 import type { PitchEngineState } from "./pitchEngine";
 import type { PlayerKind } from "./playerKind";
-import type { PlaybackPreset, PresetValues } from "./presets";
+import { presetMatches, type PlaybackPreset, type PresetValues } from "./presets";
 import { formatSpeed, positionToSpeed, speedLabel, speedToPosition, tickValues, type SpeedBounds } from "./speed";
 import type { SpeedStore } from "./state";
 import { SPEED_CSS } from "./styles";
@@ -43,6 +43,7 @@ export interface PresetControls {
 	apply: (preset: PlaybackPreset) => void;
 	clear: () => void;
 	save: (name: string, values: PresetValues) => unknown;
+	saveActive: (preset: PlaybackPreset) => void;
 }
 
 export interface SpeedControlOptions {
@@ -207,8 +208,11 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 			return;
 		}
 		const list = presets.list();
-		const activeId = store.get().presetId;
-		const key = `${list.map((preset) => `${preset.id}:${preset.name}`).join("|")}::${activeId ?? ""}`;
+		const settings = store.get();
+		const activeId = settings.presetId;
+		const activePreset = list.find((preset) => preset.id === activeId);
+		const dirty = activePreset !== undefined && !presetMatches(activePreset, settings);
+		const key = `${list.map((preset) => `${preset.id}:${preset.name}`).join("|")}::${activeId ?? ""}::${dirty}`;
 		if (key === presetsKey) return;
 		presetsKey = key;
 
@@ -225,12 +229,22 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 			const chip = document.createElement("button");
 			chip.type = "button";
 			chip.className = "lunaspeed-preset";
-			chip.textContent = preset.name;
-			chip.dataset.active = String(activeId === preset.id);
+			const isActive = activeId === preset.id;
+			chip.textContent = isActive && dirty ? `${preset.name} *` : preset.name;
+			chip.dataset.active = String(isActive);
 			chip.dataset.builtin = String(preset.builtin === true);
 			chip.title = `${preset.name} — ${speedLabel(preset.speed)}${preset.pitchShifts ? ", pitch follows speed" : preset.pitchSemitones !== 0 ? `, ${formatSemitones(preset.pitchSemitones)} st` : ""}`;
 			chip.addEventListener("click", () => presets.apply(preset));
 			chips.push(chip);
+		}
+
+		if (dirty && activePreset !== undefined) {
+			const saveChanges = document.createElement("button");
+			saveChanges.type = "button";
+			saveChanges.className = "lunaspeed-save-toggle";
+			saveChanges.textContent = activePreset.builtin === true ? "Save copy" : "Save changes";
+			saveChanges.addEventListener("click", () => presets.saveActive(activePreset));
+			chips.push(saveChanges);
 		}
 
 		const save = document.createElement("button");
@@ -246,15 +260,14 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		presetRow.replaceChildren(...chips);
 	};
 
-	const renderPitch = (semitones: number, pitchShifts: boolean, locked: boolean): void => {
+	const renderPitch = (semitones: number, pitchShifts: boolean): void => {
 		pitchValue.textContent = `${formatSemitones(semitones)} st`;
 		for (const button of pitchSteps) {
 			const delta = Number(button.dataset.delta);
-			button.disabled = locked || (delta < 0 ? semitones <= MIN_SEMITONES : semitones >= MAX_SEMITONES);
+			button.disabled = delta < 0 ? semitones <= MIN_SEMITONES : semitones >= MAX_SEMITONES;
 			button.title = delta < 0 ? "Lower pitch by 1 semitone" : "Raise pitch by 1 semitone";
 		}
 		pitchSwitch.setAttribute("aria-checked", String(pitchShifts));
-		pitchSwitch.disabled = locked;
 	};
 
 	const renderEngine = (semitones: number): void => {
@@ -289,7 +302,9 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		const label = speedLabel(speed);
 		pillLabel.textContent = label;
 		pill.dataset.active = String(speed !== 1 || pitchShifts || pitchSemitones !== 0);
-		pill.title = `Playback ${label}${presetId === null ? "" : ` · ${presetName(presetId)}`}`;
+		const activePreset = options.presets?.list().find((candidate) => candidate.id === presetId);
+		const dirty = activePreset !== undefined && !presetMatches(activePreset, settings);
+		pill.title = `Playback ${label}${presetId === null ? "" : ` · ${presetName(presetId)}${dirty ? " *" : ""}`}`;
 		slower.setAttribute("aria-label", `Slower by ${speedLabel(bounds.step)}`);
 		faster.setAttribute("aria-label", `Faster by ${speedLabel(bounds.step)}`);
 		slower.title = `−${formatSpeed(bounds.step)}×`;
@@ -301,13 +316,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		renderTicks();
 		renderPresets();
 
-		const locked = presetId !== null;
-		slider.dataset.locked = String(locked);
-		range.disabled = locked;
-		slower.disabled = locked;
-		faster.disabled = locked;
-		resetButton.disabled = locked;
-		renderPitch(pitchSemitones, pitchShifts, locked);
+		renderPitch(pitchSemitones, pitchShifts);
 		renderEngine(pitchSemitones);
 		copyButton.hidden = !settings.developerMode;
 
@@ -434,7 +443,6 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 	});
 
 	popover.addEventListener("keydown", (event) => {
-		if (store.get().presetId !== null) return;
 		if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
 			event.preventDefault();
 			store.step(-1);

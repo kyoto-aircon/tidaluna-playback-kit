@@ -35,7 +35,7 @@ current audio chain — all following TIDAL's theme, fonts and type scale.
 | 📊 **8-band EQ** | Vertical sliders at 62/125/250/500 Hz and 1/2/4/8 kHz, ±12 dB, with a Flat action. |
 | ⏱️ **Delay** | 20–2000 ms, feedback and wet mix. |
 | 🏛️ **Reverb** | Generated impulse response, 0.2–8 s decay and wet mix. |
-| ⭐ **Presets** | Save speed, pitch and effects. **Nightcore** is built in at `1.35×` with pitch following speed. While a preset is active the playback and effect controls are locked; choose **Custom** to edit. |
+| ⭐ **Presets** | Save speed, pitch and effects. **Nightcore** is built in at `1.35×` with pitch following speed. Editing anything while a preset is active marks it with `*` (unsaved): save changes to overwrite a custom preset, or spin a built-in into a new copy. Choose **Custom** to clear it. |
 | 🎨 **Theme-aware** | Colours, fonts and rem sizes come from TIDAL's own tokens and the app root — TidaLuna themes apply automatically. |
 | 🧭 **Honest scrubber** | At any rate other than 1× the plugin re-feeds the real position so audio and progress bar stay aligned. |
 | 🩺 **Developer mode** | Off by default. Enables logs, Copy diagnostics and an **audio engine self-test** that measures captured RMS. |
@@ -105,11 +105,7 @@ TIDAL streaming quality to High. It remembers your previous quality and offers *
 A preset is a snapshot of **speed + pitch mode + pitch offset + all effects**.
 
 - **Nightcore** is built in (`1.35×`, pitch follows speed), cannot be edited or removed.
-- **Save preset** in the popover captures the current state.
-- In Luna settings you can **Use**, **Rename**, **Update** (overwrite from current state), reorder
-  with ↑/↓, and **Delete** custom presets.
-- The active preset is locked: speed, pitch and effects controls are disabled until you choose
-  **Custom** in the popover.
+NaN
 
 ## Config file
 

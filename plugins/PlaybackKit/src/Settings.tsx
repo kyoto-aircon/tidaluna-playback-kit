@@ -9,7 +9,8 @@ import { copyReport, copyText } from "./debug";
 import { describeEffects, EQ_BANDS } from "./effectsSettings";
 import { EqSliders } from "./EqSliders";
 import { formatSemitones } from "./pitch";
-import { presetStore, type PlaybackPreset } from "./presets";
+import { saveActivePreset } from "./presetActions";
+import { presetMatches, presetStore, type PlaybackPreset } from "./presets";
 import { formatSpeed } from "./speed";
 import { speedStore } from "./state";
 
@@ -174,14 +175,21 @@ export const Settings = () => {
 
 			<Section>
 				<LunaSettings title="Presets" desc="Capture speed, pitch and effects. Nightcore is fixed; custom presets can be applied, renamed, updated, reordered and deleted.">
-					{presets.map((preset, index) => (
-						<LunaSetting key={preset.id} title={preset.name} desc={describePreset(preset)}>
+					{presets.map((preset, index) => {
+						const dirty = settings.presetId === preset.id && !presetMatches(preset, settings);
+						return (
+						<LunaSetting key={preset.id} title={`${preset.name}${dirty ? " *" : ""}`} desc={describePreset(preset)}>
 							<div style={actions}>
 								{settings.presetId === preset.id ? (
 									<span style={{ fontSize: 12, opacity: 0.7 }}>Active</span>
 								) : (
 									<LunaButton size="small" onClick={() => speedStore.applyPreset(preset)}>
 										Use
+									</LunaButton>
+								)}
+								{dirty && preset.builtin === true && (
+									<LunaButton size="small" onClick={() => saveActivePreset(speedStore, presetStore, preset)}>
+										Save copy
 									</LunaButton>
 								)}
 								{preset.builtin === true ? (
@@ -207,7 +215,8 @@ export const Settings = () => {
 								)}
 							</div>
 						</LunaSetting>
-					))}
+						);
+					})}
 					{renaming !== null && (
 						<>
 							<LunaTextSetting

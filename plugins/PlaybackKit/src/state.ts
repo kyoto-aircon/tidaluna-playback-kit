@@ -109,7 +109,8 @@ export const createSpeedStore = (storage: StorageLike, key: string = STORAGE_KEY
 		}
 	};
 
-	const manual = (patch: Partial<SpeedSettings>): SpeedSettings => ({ ...settings, ...patch, presetId: null });
+	// Manual edits keep the active preset; the UI marks it dirty and offers save/revert.
+	const manual = (patch: Partial<SpeedSettings>): SpeedSettings => ({ ...settings, ...patch });
 
 	return {
 		get: snapshot,
@@ -148,7 +149,7 @@ export const createSpeedStore = (storage: StorageLike, key: string = STORAGE_KEY
 			});
 		},
 		setEffects(effects: EffectsSettings): void {
-			commit({ ...settings, effects: normalizeEffects(effects), presetId: null });
+			commit({ ...settings, effects: normalizeEffects(effects) });
 		},
 		setDeveloperMode(developerMode: boolean): void {
 			commit({ ...settings, developerMode });
