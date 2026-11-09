@@ -83,6 +83,7 @@ const setMuted = (next: boolean): void => {
 const startAt = async (position: number): Promise<void> => {
 	if (buffer === null) return;
 	const ctx = await ensureContext();
+	if (ctx.state !== "running") throw new Error(`audio context is ${ctx.state}`);
 	const duration = buffer.duration;
 	if (!Number.isFinite(duration) || duration <= 0) return;
 	const offset = Math.min(Math.max(0, position), Math.max(0, duration - 0.02));
