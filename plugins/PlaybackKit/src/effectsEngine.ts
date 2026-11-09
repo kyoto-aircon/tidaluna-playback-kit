@@ -25,13 +25,19 @@ interface Graph {
 	bassShaper: WaveShaperNode;
 	bassWet: GainNode;
 	eightDInput: GainNode;
-	eightDDelay: DelayNode;
+	eightDSplitter: ChannelSplitterNode;
+	eightDDelayL: DelayNode;
+	eightDDelayR: DelayNode;
+	eightDMerger: ChannelMergerNode;
 	eightDPanner: StereoPannerNode;
+	eightDDry: GainNode;
+	eightDWet: GainNode;
 	eightDOut: GainNode;
 	panLfo: OscillatorNode;
 	panDepth: GainNode;
 	pitchLfo: OscillatorNode;
-	pitchDepth: GainNode;
+	pitchDepthL: GainNode;
+	pitchDepthR: GainNode;
 	limiter: DynamicsCompressorNode;
 	reverbIn: GainNode;
 	reverbDry: GainNode;
@@ -112,9 +118,17 @@ const build = async (): Promise<Graph> => {
 	limiter.release.value = 0.25;
 
 	const eightDInput = ctx.createGain();
-	const eightDDelay = ctx.createDelay(0.05);
-	eightDDelay.delayTime.value = 0.015;
+	const eightDSplitter = ctx.createChannelSplitter(2);
+	const eightDDelayL = ctx.createDelay(0.05);
+	eightDDelayL.delayTime.value = 0.015;
+	const eightDDelayR = ctx.createDelay(0.05);
+	eightDDelayR.delayTime.value = 0.015;
+	const eightDMerger = ctx.createChannelMerger(2);
 	const eightDPanner = ctx.createStereoPanner();
+	const eightDDry = ctx.createGain();
+	eightDDry.gain.value = 1;
+	const eightDWet = ctx.createGain();
+	eightDWet.gain.value = 0;
 	const eightDOut = ctx.createGain();
 	const panLfo = ctx.createOscillator();
 	panLfo.type = "sine";
@@ -123,18 +137,29 @@ const build = async (): Promise<Graph> => {
 	panDepth.gain.value = 0;
 	const pitchLfo = ctx.createOscillator();
 	pitchLfo.type = "sine";
-	pitchLfo.frequency.value = 0.3;
-	const pitchDepth = ctx.createGain();
-	pitchDepth.gain.value = 0;
+	pitchLfo.frequency.value = 0.35;
+	const pitchDepthL = ctx.createGain();
+	pitchDepthL.gain.value = 0;
+	const pitchDepthR = ctx.createGain();
+	pitchDepthR.gain.value = 0;
 	panLfo.connect(panDepth);
 	panDepth.connect(eightDPanner.pan);
-	pitchLfo.connect(pitchDepth);
-	pitchDepth.connect(eightDDelay.delayTime);
+	pitchLfo.connect(pitchDepthL);
+	pitchLfo.connect(pitchDepthR);
+	pitchDepthL.connect(eightDDelayL.delayTime);
+	pitchDepthR.connect(eightDDelayR.delayTime);
 	panLfo.start();
 	pitchLfo.start();
-	eightDInput.connect(eightDDelay);
-	eightDDelay.connect(eightDPanner);
-	eightDPanner.connect(eightDOut);
+	eightDInput.connect(eightDDry);
+	eightDDry.connect(eightDOut);
+	eightDInput.connect(eightDSplitter);
+	eightDSplitter.connect(eightDDelayL, 0);
+	eightDSplitter.connect(eightDDelayR, 1);
+	eightDDelayL.connect(eightDMerger, 0, 0);
+	eightDDelayR.connect(eightDMerger, 0, 1);
+	eightDMerger.connect(eightDPanner);
+	eightDPanner.connect(eightDWet);
+	eightDWet.connect(eightDOut);
 
 	const reverbIn = ctx.createGain();
 	const reverbDry = ctx.createGain();
@@ -185,13 +210,19 @@ const build = async (): Promise<Graph> => {
 		bassShaper,
 		bassWet,
 		eightDInput,
-		eightDDelay,
+		eightDSplitter,
+		eightDDelayL,
+		eightDDelayR,
+		eightDMerger,
 		eightDPanner,
+		eightDDry,
+		eightDWet,
 		eightDOut,
 		panLfo,
 		panDepth,
 		pitchLfo,
-		pitchDepth,
+		pitchDepthL,
+		pitchDepthR,
 		limiter,
 		reverbIn,
 		reverbDry,
@@ -226,7 +257,12 @@ const applyParams = (ctx: AudioContext, effects: EffectsSettings): void => {
 	g.panLfo.frequency.setTargetAtTime(effects.eightD.rate, now, smooth);
 	g.panDepth.gain.setTargetAtTime(effects.eightD.enabled ? effects.eightD.panDepth : 0, now, smooth);
 	g.pitchLfo.frequency.setTargetAtTime(effects.eightD.pitchRate, now, smooth);
-	g.pitchDepth.gain.setTargetAtTime(effects.eightD.enabled ? effects.eightD.pitchDepth / 1000 : 0, now, smooth);
+	const depth = effects.eightD.enabled ? effects.eightD.pitchDepth / 1000 : 0;
+	g.pitchDepthL.gain.setTargetAtTime(depth, now, smooth);
+	g.pitchDepthR.gain.setTargetAtTime(-depth, now, smooth);
+	const mix = effects.eightD.enabled ? effects.eightD.mix : 0;
+	g.eightDDry.gain.setTargetAtTime(1 - mix, now, smooth);
+	g.eightDWet.gain.setTargetAtTime(mix, now, smooth);
 
 	const delayWet = effects.delay.enabled ? effects.delay.mix : 0;
 	g.delayNode.delayTime.setTargetAtTime(Math.min(2, Math.max(0.02, effects.delay.timeMs / 1000)), now, smooth);

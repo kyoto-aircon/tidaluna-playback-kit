@@ -41,6 +41,8 @@ export interface EightDSettings {
 	pitchRate: number;
 	/** Pitch wobble depth in milliseconds, 0..12. */
 	pitchDepth: number;
+	/** Wet mix, 0..1. */
+	mix: number;
 }
 
 export interface ReverbSettings {
@@ -62,7 +64,7 @@ export interface EffectsSettings {
 export const DEFAULT_EFFECTS: EffectsSettings = {
 	eq: { enabled: false, bands: Array.from({ length: EQ_BANDS }, () => 0) },
 	bass: { enabled: false, boost: 6, sub: 3, drive: 0.2, mix: 0.6 },
-	eightD: { enabled: false, rate: 0.12, panDepth: 0.8, pitchRate: 0.3, pitchDepth: 4 },
+	eightD: { enabled: false, rate: 0.15, panDepth: 0.9, pitchRate: 0.35, pitchDepth: 2, mix: 1 },
 	delay: { enabled: false, timeMs: 250, feedback: 0.25, mix: 0.25 },
 	reverb: { enabled: false, decay: 2, mix: 0.25 },
 };
@@ -105,6 +107,7 @@ export const normalizeEffects = (value: unknown): EffectsSettings => {
 			panDepth: clamp(eightD.panDepth, 0, 1, DEFAULT_EFFECTS.eightD.panDepth),
 			pitchRate: clamp(eightD.pitchRate, 0.02, 2, DEFAULT_EFFECTS.eightD.pitchRate),
 			pitchDepth: clamp(eightD.pitchDepth, 0, 12, DEFAULT_EFFECTS.eightD.pitchDepth),
+			mix: clamp(eightD.mix, 0, 1, DEFAULT_EFFECTS.eightD.mix),
 		},
 		bass: {
 			enabled: bool(bass.enabled, DEFAULT_EFFECTS.bass.enabled),

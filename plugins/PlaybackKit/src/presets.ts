@@ -98,7 +98,10 @@ export const EIGHT_D_PRESET: PlaybackPreset = {
 	speed: 1,
 	pitchShifts: false,
 	pitchSemitones: 0,
-	effects: effectsOf({ eightD: { enabled: true, rate: 0.1, panDepth: 0.85, pitchRate: 0.3, pitchDepth: 4 } }),
+	effects: effectsOf({
+		eightD: { enabled: true, rate: 0.15, panDepth: 0.9, pitchRate: 0.35, pitchDepth: 2, mix: 1 },
+		reverb: { enabled: true, decay: 2.5, mix: 0.2 },
+	}),
 	builtin: true,
 };
 
@@ -150,7 +153,7 @@ export const SUBMERGE_PRESET: PlaybackPreset = {
 	pitchSemitones: 0,
 	effects: effectsOf({
 		bass: { enabled: true, boost: 10, sub: 5, drive: 0.3, mix: 0.6 },
-		eightD: { enabled: true, rate: 0.08, panDepth: 0.7, pitchRate: 0.2, pitchDepth: 3 },
+		eightD: { enabled: true, rate: 0.1, panDepth: 0.75, pitchRate: 0.25, pitchDepth: 2, mix: 0.85 },
 	}),
 	builtin: true,
 };

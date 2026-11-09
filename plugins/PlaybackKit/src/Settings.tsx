@@ -364,6 +364,16 @@ export const Settings = () => {
 							if (value !== undefined) setEightD({ pitchDepth: Math.max(0, Math.min(12, value)) });
 						}}
 					/>
+					<LunaTextSetting
+						title="8D mix (%)"
+						desc="Dry/wet amount; higher is more immersive."
+						defaultValue={String(Math.round(effects.eightD.mix * 100))}
+						inputProps={{ inputMode: "numeric" }}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+							const value = parseNumber(e.target.value);
+							if (value !== undefined) setEightD({ mix: Math.max(0, Math.min(100, value)) / 100 });
+						}}
+					/>
 					<LunaSwitchSetting
 						title="Delay"
 						desc="Feedback delay."

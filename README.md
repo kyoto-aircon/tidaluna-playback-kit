@@ -36,7 +36,7 @@ current audio chain — all following TIDAL's theme, fonts and type scale.
 | 🎵 **Pitch follows speed** | Rate-based chipmunk / slow-mo. Off by default, so pitch is preserved like YouTube. |
 | 🎼 **Pitch shifter** | Independent `−12…+12 st` offset through an AudioWorklet. Mutually exclusive with *Pitch follows speed*. |
 | 📊 **8-band EQ** | Vertical sliders at 62/125/250/500 Hz and 1/2/4/8 kHz, ±12 dB, with a Flat action. |
-| 🌐 **8D audio** | LFO auto-pan plus a constant pitch wobble (modulated delay), so the mix circles your head. Rate/depth for both pan and pitch. |
+| 🌐 **8D audio** | Stereo chorus (opposite-phase delays on L/R) plus LFO auto-pan and a dry/wet mix, so the mix circles your head. Rate/depth for pan and pitch. |
 | 🥁 **Bass boost** | Parallel 90 Hz shelf up to +24 dB, 45 Hz sub shelf, saturation drive for dirty kicks, and a safety limiter at the end of the chain. |
 | ⏱️ **Delay** | 20–2000 ms, feedback and wet mix. |
 | 🏛️ **Reverb** | Generated impulse response, 0.2–8 s decay and wet mix. |
@@ -143,7 +143,7 @@ folder**, **Reload**, **Import…** and **Export…**.
     "effects": {
       "eq": { "enabled": true, "bands": [4, 2, 0, -2, -1, 0, 2, 3] },
       "bass": { "enabled": true, "boost": 8, "sub": 4, "drive": 0.35, "mix": 0.7 },
-      "eightD": { "enabled": true, "rate": 0.12, "panDepth": 0.8, "pitchRate": 0.3, "pitchDepth": 4 },
+      "eightD": { "enabled": true, "rate": 0.15, "panDepth": 0.9, "pitchRate": 0.35, "pitchDepth": 2, "mix": 1 },
       "delay": { "enabled": false, "timeMs": 250, "feedback": 0.25, "mix": 0.25 },
       "reverb": { "enabled": true, "decay": 3, "mix": 0.3 }
     },

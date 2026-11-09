@@ -71,8 +71,8 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 
 ## 8D audio
 
-- Series stage between bass and delay: `eightDInput -> delay (15 ms base) -> StereoPanner -> eightDOut`. A sine LFO (rate/Hz) drives `panDepth` into `panner.pan`; a second sine LFO drives `pitchDepth/1000` seconds into the delay time (vibrato). Both oscillators start once and depths go to 0 when disabled.
-- `eightD.rate`/`pitchRate` 0.02–2 Hz, `panDepth` 0–1, `pitchDepth` 0–12 ms.
+- Series stage between bass and delay. Dry path `eightDInput -> eightDDry -> eightDOut`; wet path splits L/R, feeds two 15 ms delays modulated in opposite phase by one sine LFO (stereo chorus), merges, then `StereoPanner` (second LFO) and `eightDWet` back to the output. `mix` is a dry/wet crossfade; disabled = dry 1, wet 0, pan/depth 0.
+- `eightD.rate`/`pitchRate` 0.02–2 Hz, `panDepth` 0–1, `pitchDepth` 0–12 ms, `mix` 0–1.
 
 ## Release layout
 
