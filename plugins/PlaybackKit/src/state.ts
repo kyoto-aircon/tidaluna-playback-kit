@@ -181,7 +181,13 @@ export const createSpeedStore = (storage: StorageLike, key: string = STORAGE_KEY
 			});
 		},
 		reset(): void {
-			commit({ ...defaults(), developerMode: settings.developerMode, effects: settings.effects, presetId: null, bounds: { ...settings.bounds } });
+			commit({
+				...defaults(),
+				developerMode: settings.developerMode,
+				builtinPresets: settings.builtinPresets,
+				presetId: null,
+				bounds: { ...settings.bounds },
+			});
 		},
 		destroy(): void {
 			listeners.clear();

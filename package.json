@@ -1,6 +1,6 @@
 {
 	"name": "@kyoto-aircon/tidaluna-playback-kit",
-	"version": "2.13.1",
+	"version": "2.13.2",
 	"description": "Playback kit for TIDAL Luna: speed slider, pitch shifter, presets and nightcore.",
 	"author": {
 		"name": "kyoto-aircon",

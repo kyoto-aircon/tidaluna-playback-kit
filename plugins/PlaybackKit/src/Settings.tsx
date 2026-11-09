@@ -168,7 +168,7 @@ export const Settings = () => {
 						checked={pitchShifts}
 							onChange={(e: React.ChangeEvent<HTMLInputElement>) => speedStore.setPitchShifts(e.target.checked)}
 					/>
-					<LunaSetting title="Reset" desc="Back to 1.00×, no pitch shift, effects unchanged.">
+					<LunaSetting title="Reset" desc="Back to 1.00×, pitch shift off, all effects off.">
 						<div style={actions}>
 							<LunaButton size="small" variant="outlined"  onClick={() => speedStore.reset()}>
 								Reset playback

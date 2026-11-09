@@ -149,7 +149,8 @@ describe("speed store", () => {
 		assert.equal(store.get().effects.reverb.decay, 4);
 		assert.equal(createSpeedStore(storage).get().effects.reverb.enabled, true);
 		store.reset();
-		assert.equal(store.get().effects.reverb.enabled, true, "reset keeps effects");
+		assert.equal(store.get().effects.reverb.enabled, false, "reset clears effects");
+		assert.deepEqual(store.get().effects, DEFAULT_EFFECTS);
 	});
 
 	it("toggles developer mode without touching the active preset", () => {
@@ -174,11 +175,17 @@ describe("speed store", () => {
 		assert.deepEqual(seen, [1.5, 1.5]);
 	});
 
-	it("resets speed and pitch", () => {
+	it("resets speed, pitch and effects but keeps UI preferences", () => {
 		const store = createSpeedStore(fakeStorage());
+		store.setDeveloperMode(true);
+		store.setBuiltinPresets(false);
 		store.setSpeed(2);
 		store.setPitchSemitones(4);
+		store.setEffects({ ...DEFAULT_EFFECTS, bass: { enabled: true, boost: 12, sub: 5, drive: 0.4, mix: 0.8 } });
 		store.reset();
 		assert.deepEqual([store.get().speed, store.get().pitchSemitones, store.get().pitchShifts], [1, 0, false]);
+		assert.deepEqual(store.get().effects, DEFAULT_EFFECTS);
+		assert.equal(store.get().developerMode, true);
+		assert.equal(store.get().builtinPresets, false);
 	});
 });
