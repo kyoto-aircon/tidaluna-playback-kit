@@ -35,7 +35,7 @@ current audio chain — all following TIDAL's theme, fonts and type scale.
 | 📊 **8-band EQ** | Vertical sliders at 62/125/250/500 Hz and 1/2/4/8 kHz, ±12 dB, with a Flat action. |
 | ⏱️ **Delay** | 20–2000 ms, feedback and wet mix. |
 | 🏛️ **Reverb** | Generated impulse response, 0.2–8 s decay and wet mix. |
-| ⭐ **Presets** | Save speed, pitch and effects. **Nightcore** is built in at `1.35×` with pitch following speed. Editing anything while a preset is active marks it with `*` (unsaved): save changes to overwrite a custom preset, or spin a built-in into a new copy. Choose **Custom** to clear it. |
+| ⭐ **Presets** | Save speed, pitch and effects. **Nightcore** is built in at `1.35×` with pitch following speed. Editing anything while a preset is active marks it with `*` (unsaved). **Save preset** pre-fills the active name: same name overwrites a custom preset, a built-in pre-fills `<name> (edited)` to save a copy. Choose **Custom** to clear it. |
 | 🎨 **Theme-aware** | Colours, fonts and rem sizes come from TIDAL's own tokens and the app root — TidaLuna themes apply automatically. |
 | 🧭 **Honest scrubber** | At any rate other than 1× the plugin re-feeds the real position so audio and progress bar stay aligned. |
 | 🩺 **Developer mode** | Off by default. Enables logs, Copy diagnostics and an **audio engine self-test** that measures captured RMS. |

@@ -9,7 +9,6 @@ import { copyReport, copyText } from "./debug";
 import { describeEffects, EQ_BANDS } from "./effectsSettings";
 import { EqSliders } from "./EqSliders";
 import { formatSemitones } from "./pitch";
-import { saveActivePreset } from "./presetActions";
 import { presetMatches, presetStore, type PlaybackPreset } from "./presets";
 import { formatSpeed } from "./speed";
 import { speedStore } from "./state";
@@ -185,11 +184,6 @@ export const Settings = () => {
 								) : (
 									<LunaButton size="small" onClick={() => speedStore.applyPreset(preset)}>
 										Use
-									</LunaButton>
-								)}
-								{dirty && preset.builtin === true && (
-									<LunaButton size="small" onClick={() => saveActivePreset(speedStore, presetStore, preset)}>
-										Save copy
 									</LunaButton>
 								)}
 								{preset.builtin === true ? (

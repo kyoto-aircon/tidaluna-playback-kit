@@ -42,7 +42,7 @@ export interface PresetControls {
 	list: () => PlaybackPreset[];
 	apply: (preset: PlaybackPreset) => void;
 	clear: () => void;
-	save: (name: string, values: PresetValues) => unknown;
+	save: (name: string, values: PresetValues) => PlaybackPreset | undefined;
 	saveActive: (preset: PlaybackPreset) => void;
 }
 
@@ -238,22 +238,17 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 			chips.push(chip);
 		}
 
-		if (dirty && activePreset !== undefined) {
-			const saveChanges = document.createElement("button");
-			saveChanges.type = "button";
-			saveChanges.className = "lunaspeed-save-toggle";
-			saveChanges.textContent = activePreset.builtin === true ? "Save copy" : "Save changes";
-			saveChanges.addEventListener("click", () => presets.saveActive(activePreset));
-			chips.push(saveChanges);
-		}
-
 		const save = document.createElement("button");
 		save.type = "button";
 		save.className = "lunaspeed-save-toggle";
 		save.textContent = "Save preset";
 		save.addEventListener("click", () => {
 			saveForm.hidden = !saveForm.hidden;
-			if (!saveForm.hidden) saveInput.focus();
+			if (saveForm.hidden) return;
+			const active = list.find((preset) => preset.id === store.get().presetId);
+			saveInput.value = active === undefined ? "" : active.builtin === true ? `${active.name} (edited)` : active.name;
+			saveInput.focus();
+			saveInput.select();
 		});
 		chips.push(save);
 
@@ -469,8 +464,14 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		const name = saveInput.value.trim();
 		if (name === "") return;
 		const { speed, pitchShifts, pitchSemitones, effects } = store.get();
-		const saved = presets.save(name, { speed, pitchShifts, pitchSemitones, effects });
-		if (saved === undefined) return;
+		const active = presets.list().find((preset) => preset.id === store.get().presetId);
+		if (active !== undefined && active.builtin !== true && name === active.name) {
+			presets.saveActive(active);
+		} else {
+			const saved = presets.save(name, { speed, pitchShifts, pitchSemitones, effects });
+			if (saved === undefined) return;
+			presets.apply(saved);
+		}
 		saveInput.value = "";
 		saveForm.hidden = true;
 		presetsKey = "";
