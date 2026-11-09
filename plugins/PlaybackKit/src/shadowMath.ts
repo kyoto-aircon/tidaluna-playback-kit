@@ -17,3 +17,7 @@ export const shadowPitchRatio = (semitones: number, speed: number, pitchShifts: 
 /** Stream position of the buffer source, in seconds. */
 export const shadowPosition = (elapsedSeconds: number, rate: number, offset: number): number =>
 	Math.max(0, elapsedSeconds * rate + offset);
+
+/** Signalsmith semitones: pitch follows speed, or the user's independent offset. */
+export const stretchSemitones = (semitones: number, speed: number, pitchShifts: boolean): number =>
+	pitchShifts ? 12 * Math.log2(speed) : semitones;

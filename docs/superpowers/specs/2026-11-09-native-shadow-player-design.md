@@ -209,3 +209,13 @@ native renderer is seeked to `duration - 0.25` and played at the end so TIDAL em
 `completed` and advances the queue. Seeks are captured from the wrapped active-player `seek`.
 The shadow output has its own gain node mirroring TIDAL's desired volume; the native session
 is muted while the shadow owns audio.
+
+## Amendment: Signalsmith Stretch (2.18.0)
+
+The shadow's audio engine is Signalsmith Stretch (official MIT JS/WASM AudioWorklet)
+instead of `AudioBufferSourceNode` + playbackRate + a 1/speed pitch compensation. It gives
+independent `rate` and `semitones`, so speed, independent pitch and pitch-follows-speed are
+all high quality. The WASM is loaded lazily; buffers are fed once per track and seeks/rate
+changes are scheduled by input time. The old granular worklet remains for the shaka/browser
+player only. Output is still muted-native at 1× and paused-native at other rates, with the
+same end-of-track resume to advance TIDAL's queue.

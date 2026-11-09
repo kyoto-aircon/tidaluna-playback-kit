@@ -1,6 +1,6 @@
 {
 	"name": "@kyoto-aircon/tidaluna-playback-kit",
-	"version": "2.17.0",
+	"version": "2.18.0",
 	"description": "Playback kit for TIDAL Luna: speed slider, pitch shifter, presets and nightcore.",
 	"author": {
 		"name": "kyoto-aircon",
@@ -29,5 +29,8 @@
 		"rimraf": "^6.0.1",
 		"tsx": "^4.20.4",
 		"typescript": "^5.9.2"
+	},
+	"dependencies": {
+		"signalsmith-stretch": "^1.3.2"
 	}
 }

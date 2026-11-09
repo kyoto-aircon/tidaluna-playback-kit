@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { shadowPitchRatio, shadowPosition } from "../plugins/PlaybackKit/src/shadowMath";
+import { shadowPitchRatio, shadowPosition, stretchSemitones } from "../plugins/PlaybackKit/src/shadowMath";
 
 const close = (actual: number, expected: number, epsilon = 1e-6): void => {
 	assert.ok(Math.abs(actual - expected) < epsilon, `${actual} != ${expected}`);
@@ -29,5 +29,13 @@ describe("shadow player maths", () => {
 		close(shadowPosition(10, 1, 0), 10);
 		close(shadowPosition(10, 0.7, 4), 11);
 		close(shadowPosition(0, 0.7, -1), 0);
+	});
+
+	it("maps speed/pitch to Signalsmith semitones", () => {
+		close(stretchSemitones(3, 1, false), 3);
+		close(stretchSemitones(3, 0.7, false), 3);
+		close(stretchSemitones(0, 0.5, true), -12);
+		close(stretchSemitones(0, 1.35, true), 12 * Math.log2(1.35));
+		close(stretchSemitones(0, 1, true), 0);
 	});
 });

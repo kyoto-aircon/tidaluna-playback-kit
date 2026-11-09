@@ -1,4 +1,5 @@
 import type { LunaUnload } from "@luna/core";
+import type { StretchNode } from "signalsmith-stretch";
 
 import { connectSource, disconnectSource, ensureContext } from "./audioEngine";
 import { debugLog } from "./debug";
@@ -6,7 +7,8 @@ import { hasAudibleEffects } from "./effectsSettings";
 import { getNativeStreamState } from "./nativePlayer";
 import { getPlayerKind } from "./playerKind";
 import { preparePreload, prepareStream, readBridge, readTrack, releaseTrack } from "./nativeProbe.native";
-import { shadowPosition } from "./shadowMath";
+import { stretchSemitones } from "./shadowMath";
+import { ensureStretch, resetStretch } from "./stretch";
 import type { SpeedSettings } from "./state";
 
 const TICK_MS = 250;
@@ -29,6 +31,7 @@ export interface ShadowDeps {
 
 export interface ShadowStatus {
 	state: "idle" | "preparing" | "ready" | "failed";
+	engine: "signalsmith";
 	bufferSeconds: number | null;
 	playing: boolean;
 	muted: boolean;
@@ -47,12 +50,17 @@ let loadAt: number | null = null;
 let lastPreloadAt: number | null = null;
 let phase: ShadowStatus["state"] = "idle";
 let preparingId: number | null = null;
-let buffer: AudioBuffer | null = null;
-let source: AudioBufferSourceNode | null = null;
+
+let trackDuration = 0;
+let channels: [Float32Array, Float32Array] | undefined;
+let buffered = false;
+let stretchNode: StretchNode | undefined;
 let shadowGain: GainNode | undefined;
+
 let sourceStartedAt = 0;
 let sourceOffset = 0;
 let sourceRate = 1;
+let sourcePitch = 0;
 let sourcePlaying = false;
 let muted = false;
 let nativePaused = false;
@@ -64,21 +72,22 @@ let failedLoadAt: number | null = null;
 let desiredVolume = 1;
 
 const currentPosition = (): number => {
-	if (source === null || !sourcePlaying) return sourceOffset;
-	return shadowPosition(source.context.currentTime - sourceStartedAt, sourceRate, sourceOffset);
+	if (!sourcePlaying) return sourceOffset;
+	const node = stretchNode;
+	const measured = node?.inputTime;
+	if (typeof measured === "number" && Number.isFinite(measured) && measured > 0) return measured;
+	const elapsed = node === undefined ? 0 : Math.max(0, node.context.currentTime - sourceStartedAt);
+	return sourceOffset + elapsed * sourceRate;
 };
 
 const stopSource = (): void => {
-	if (source === null) return;
-	const node = source;
-	source = null;
+	if (!sourcePlaying) return;
+	const position = currentPosition();
+	sourceOffset = position;
 	sourcePlaying = false;
-	try {
-		node.stop();
-	} catch {
-		// Already stopped.
+	if (stretchNode !== undefined) {
+		void stretchNode.schedule({ output: stretchNode.context.currentTime, active: false });
 	}
-	disconnectSource(node);
 };
 
 /** Keeps the shadow at TIDAL's desired volume (the native session is muted). */
@@ -107,47 +116,53 @@ const setMuted = (next: boolean): void => {
 /** Puts the native renderer back at our position without stealing the clock. */
 const resumeNativeIfPaused = (): void => {
 	if (!nativePaused || deps === undefined) return;
-	const position = buffer !== null ? currentPosition() : (deps.getNativePosition() ?? 0);
+	const position = channels === undefined ? (deps.getNativePosition() ?? 0) : currentPosition();
 	deps.seekNative?.(position);
 	if (deps.isPlaying()) deps.playNativeAt?.(position, desiredVolume);
 	else deps.setNativeVolume(desiredVolume);
 	nativePaused = false;
 };
 
+const pitchSemitones = (settings: SpeedSettings): number =>
+	stretchSemitones(settings.pitchSemitones, settings.speed, settings.pitchShifts);
+
 const startAt = async (position: number, followNative = true): Promise<void> => {
-	if (buffer === null) return;
+	if (channels === undefined) return;
 	const ctx = await ensureContext();
 	if (ctx.state !== "running") throw new Error(`audio context is ${ctx.state}`);
-	const duration = buffer.duration;
-	if (!Number.isFinite(duration) || duration <= 0) return;
-	const speed = deps?.getSettings().speed ?? 1;
-	const offset = Math.min(Math.max(0, position), Math.max(0, duration - 0.02));
+	if (!Number.isFinite(trackDuration) || trackDuration <= 0) return;
+	const settings = deps?.getSettings();
+	const speed = settings?.speed ?? 1;
+	const pitch = settings === undefined ? 0 : pitchSemitones(settings);
+	const offset = Math.min(Math.max(0, position), Math.max(0, trackDuration - 0.02));
+
 	stopSource();
 	ending = false;
-	const node = ctx.createBufferSource();
-	node.buffer = buffer;
-	node.playbackRate.value = speed;
-	sourceRate = speed;
-	node.onended = () => {
-		if (source !== node) return;
-		sourcePlaying = false;
-		ending = true;
-		if (Math.abs(sourceRate - 1) > 1e-3 && buffer !== null) {
-			// Let the native player run its last fraction so TIDAL emits `completed`
-			// and advances the queue, then our next load takes over again.
-			deps?.playNativeAt?.(Math.max(0, buffer.duration - 0.25), 0);
-			nativePaused = false;
-		}
-	};
+	const node = await ensureStretch(ctx);
 	const gain = await ensureGain(ctx);
-	node.connect(gain);
-	source = node;
+	if (stretchNode !== node) {
+		try {
+			node.disconnect();
+		} catch {
+			// Not connected yet.
+		}
+		node.connect(gain);
+		stretchNode = node;
+	}
+	if (!buffered) {
+		await node.dropBuffers();
+		await node.addBuffers(channels);
+		buffered = true;
+	}
 	const live = followNative ? (deps?.getNativePosition() ?? null) : null;
-	const start = live === null ? offset : Math.max(0, Math.min(live + 0.02, Math.max(0, duration - 0.02)));
+	const start = live === null ? offset : Math.max(0, Math.min(live + 0.02, Math.max(0, trackDuration - 0.02)));
+	await node.schedule({ output: ctx.currentTime + 0.08, input: start, active: true, rate: speed, semitones: pitch });
 	sourceOffset = start;
-	sourceStartedAt = ctx.currentTime;
+	sourceStartedAt = ctx.currentTime + 0.08;
+	sourceRate = speed;
+	sourcePitch = pitch;
 	sourcePlaying = true;
-	node.start(0, start);
+
 	setMuted(true);
 	if (Math.abs(speed - 1) > 1e-3) {
 		if (!nativePaused) {
@@ -155,11 +170,10 @@ const startAt = async (position: number, followNative = true): Promise<void> => 
 			nativePaused = true;
 		}
 	} else if (nativePaused) {
-		// Back to 1x: native becomes the clock again.
 		deps?.playNativeAt?.(start, 0);
 		nativePaused = false;
 	}
-	debugLog("info", "shadow source started", { offset: Number(start.toFixed(3)), rate: speed });
+	debugLog("info", "shadow source started", { offset: Number(start.toFixed(3)), rate: speed, pitch });
 };
 
 const readAll = async (id: number, total: number): Promise<Uint8Array> => {
@@ -191,7 +205,11 @@ const decodeTrack = async (id: number, total: number): Promise<void> => {
 	if (estimated > MAX_BUFFER_BYTES) {
 		throw new Error(`decoded track is too large (${Math.round(estimated / 1024 / 1024)} MB)`);
 	}
-	buffer = audio;
+	const left = new Float32Array(audio.getChannelData(0));
+	const right = audio.numberOfChannels > 1 ? new Float32Array(audio.getChannelData(1)) : left.slice();
+	channels = [left, right];
+	trackDuration = audio.duration;
+	buffered = false;
 	phase = "ready";
 	debugLog("info", "shadow track decoded", { seconds: Number(audio.duration.toFixed(2)), channels: audio.numberOfChannels });
 };
@@ -200,10 +218,10 @@ const fail = (reason: unknown): void => {
 	error = String(reason);
 	phase = "failed";
 	failedLoadAt = loadAt;
-	if (sourcePlaying) sourceOffset = currentPosition();
 	stopSource();
 	resumeNativeIfPaused();
-	buffer = null;
+	channels = undefined;
+	buffered = false;
 	setMuted(false);
 	debugLog("error", "shadow player failed", { error });
 };
@@ -217,16 +235,17 @@ const runTick = async (): Promise<void> => {
 	const settings = deps.getSettings();
 	const active = enabled && getPlayerKind() === "native" && shouldRun(settings);
 	if (!active) {
-		if (source !== null || buffer !== null || muted || nativePaused) {
-			if (sourcePlaying) sourceOffset = currentPosition();
+		if (sourcePlaying || channels !== undefined || muted || nativePaused) {
 			stopSource();
 			resumeNativeIfPaused();
-			buffer = null;
+			channels = undefined;
+			buffered = false;
 			phase = "idle";
 			setMuted(false);
 		}
 		loadAt = null;
 		lastPreloadAt = null;
+		lastSeekAt = 0;
 		failedLoadAt = null;
 		return;
 	}
@@ -249,7 +268,9 @@ const runTick = async (): Promise<void> => {
 			loadAt = streams.load.at;
 			failedLoadAt = null;
 			error = undefined;
-			buffer = null;
+			channels = undefined;
+			buffered = false;
+			trackDuration = 0;
 			phase = "preparing";
 			ending = false;
 			nativePaused = false;
@@ -288,7 +309,7 @@ const runTick = async (): Promise<void> => {
 	const seek = streamState.seek;
 	if (seek !== undefined && seek.at !== lastSeekAt) {
 		lastSeekAt = seek.at;
-		if (buffer !== null) {
+		if (channels !== undefined) {
 			if (deps.isPlaying()) await startAt(seek.time, false);
 			else {
 				if (sourcePlaying) stopSource();
@@ -297,16 +318,18 @@ const runTick = async (): Promise<void> => {
 			return;
 		}
 	}
-	if (buffer === null) return;
+	if (channels === undefined) return;
 	if (muted) deps.setNativeVolume(0);
 	if (ending) return;
 
-	if (source !== null && sourcePlaying && Math.abs(source.playbackRate.value - speed) > 1e-4) {
+	const currentPitch = pitchSemitones(deps.getSettings());
+	if (sourcePlaying && stretchNode !== undefined && (Math.abs(sourceRate - speed) > 1e-4 || Math.abs(sourcePitch - currentPitch) > 1e-4)) {
 		const position = currentPosition();
-		source.playbackRate.value = speed;
-		sourceRate = speed;
+		await stretchNode.schedule({ output: stretchNode.context.currentTime + 0.05, rate: speed, semitones: currentPitch });
 		sourceOffset = position;
-		sourceStartedAt = source.context.currentTime;
+		sourceStartedAt = stretchNode.context.currentTime + 0.05;
+		sourceRate = speed;
+		sourcePitch = currentPitch;
 		if (fast && !nativePaused) {
 			setMuted(true);
 			deps.pauseNative?.();
@@ -331,30 +354,36 @@ const runTick = async (): Promise<void> => {
 		return;
 	}
 
-	if (!fast) {
-		const native = deps.getNativePosition();
-		if (native === null) return;
-		if (native >= buffer.duration - 0.05) {
-			if (sourcePlaying) stopSource();
-			return;
-		}
-		setMuted(true);
+	if (fast) {
 		if (!sourcePlaying) {
-			await startAt(native + 0.05);
+			await startAt(sourceOffset, false);
 			return;
 		}
-		if (Math.abs(currentPosition() - native) > DRIFT_SECONDS) {
-			debugLog("info", "shadow resync", { ours: Number(currentPosition().toFixed(3)), native: Number(native.toFixed(3)) });
-			await startAt(native + 0.05);
+		if (currentPosition() >= trackDuration - 0.06) {
+			stopSource();
+			ending = true;
+			deps.playNativeAt?.(Math.max(0, trackDuration - 0.25), 0);
+			nativePaused = false;
 		}
 		return;
 	}
 
-	// Non-1x: the native renderer is paused, our buffer is the clock.
-	if (!sourcePlaying) await startAt(sourceOffset, false);
+	const native = deps.getNativePosition();
+	if (native === null) return;
+	if (native >= trackDuration - 0.05) {
+		if (sourcePlaying) stopSource();
+		return;
+	}
+	setMuted(true);
+	if (!sourcePlaying) {
+		await startAt(native + 0.02);
+		return;
+	}
+	if (Math.abs(currentPosition() - native) > DRIFT_SECONDS) {
+		debugLog("info", "shadow resync", { ours: Number(currentPosition().toFixed(3)), native: Number(native.toFixed(3)) });
+		await startAt(native + 0.02);
+	}
 };
-
-export const getShadowPosition = (): number | null => (buffer === null ? null : currentPosition());
 
 const tick = (): void => {
 	if (busy) return;
@@ -373,9 +402,12 @@ export const updateShadowPlayer = (settings: SpeedSettings): void => {
 	enabled = settings.nativeEffects;
 };
 
+export const getShadowPosition = (): number | null => (channels === undefined ? null : currentPosition());
+
 export const getShadowStatus = (): ShadowStatus => ({
 	state: phase,
-	bufferSeconds: buffer === null ? null : Number(buffer.duration.toFixed(2)),
+	engine: "signalsmith",
+	bufferSeconds: channels === undefined ? null : Number(trackDuration.toFixed(2)),
 	playing: sourcePlaying,
 	muted,
 	nativePaused,
@@ -393,14 +425,16 @@ export const startShadowPlayer = (unloads: Set<LunaUnload>, next: ShadowDeps): v
 	unloads.add(() => {
 		if (timer !== undefined) clearInterval(timer);
 		timer = undefined;
-		if (sourcePlaying) sourceOffset = currentPosition();
 		stopSource();
 		resumeNativeIfPaused();
 		if (shadowGain !== undefined) {
 			disconnectSource(shadowGain);
 			shadowGain = undefined;
 		}
-		buffer = null;
+		resetStretch();
+		stretchNode = undefined;
+		channels = undefined;
+		buffered = false;
 		setMuted(false);
 		deps = undefined;
 	});

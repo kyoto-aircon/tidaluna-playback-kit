@@ -34,7 +34,7 @@ current audio chain — all following TIDAL's theme, fonts and type scale.
 |---|---|
 | 🎚️ **Speed** | `−` / `+` steppers and a log slider. Range and snap are configurable (default `0.05×`–`10×`, step `0.05×`). The thumb moves smoothly, the rate snaps to your step. |
 | 🎵 **Pitch follows speed** | Rate-based chipmunk / slow-mo. Off by default, so pitch is preserved like YouTube. |
-| 🎼 **Pitch shifter** | Independent `−12…+12 st` offset through an AudioWorklet. Mutually exclusive with *Pitch follows speed*. |
+| 🎼 **Pitch shifter** | Independent `−12…+12 st` offset. The browser player uses an AudioWorklet granular shifter; native lossless uses Signalsmith Stretch (WASM) so speed and pitch stay independent. Mutually exclusive with *Pitch follows speed*. |
 | 📊 **8-band EQ** | Vertical sliders at 62/125/250/500 Hz and 1/2/4/8 kHz, ±12 dB, with a Flat action. |
 | 🌐 **8D audio** | Stereo chorus (opposite-phase delays on L/R) plus LFO auto-pan and a dry/wet mix, so the mix circles your head. Rate/depth for pan and pitch. |
 | 🥁 **Bass boost** | Parallel 90 Hz shelf up to +24 dB, 45 Hz sub shelf, saturation drive for dirty kicks, and a safety limiter at the end of the chain. |
@@ -108,10 +108,12 @@ flowchart TD
 On the native player the popover shows a warning. **Enable in Playback Kit** turns on the
 shadow player: the plugin captures the stream descriptor from TIDAL's player, downloads the
 same lossless stream, decrypts it (`OLD_AES`) and decodes it into the pitch/effects graph.
-At 1× the native renderer is muted and stays the clock; at other speeds it is paused, the
-buffer becomes the clock, and the native renderer is resumed near the end so TIDAL emits
-`completed` and advances the queue. Each following track is prefetched while the current one
-plays. **Use browser player** still switches TIDAL to High.
+Native speed/pitch use **Signalsmith Stretch** (official MIT JS/WASM AudioWorklet), so rate
+and pitch are independent and high quality; the browser player still uses the lighter
+granular worklet. At 1× the native renderer is muted and stays the clock; at other speeds it
+is paused, the buffer becomes the clock, and the native renderer is resumed near the end so
+TIDAL emits `completed` and advances the queue. Each following track is prefetched while the
+current one plays. **Use browser player** still switches TIDAL to High.
 
 No **electron** grant is needed for this: the stream is captured in the renderer and the
 main-process bridge only uses `fetch`/`crypto`. Only the config file dialogs ask for electron.
@@ -195,6 +197,11 @@ last change; edit the file with TIDAL closed or press **Reload** afterwards.
 | Progress bar drifts from audio | Shouldn't happen — the plugin re-feeds the position at non-1× | If it does, enable Developer mode and send diagnostics |
 | Pitch sounds artefacty | Granular shifter at large offsets | Use smaller offsets; a smooth algorithm is on the roadmap |
 | Logs/buttons missing | Developer mode is off | Luna settings → Playback Kit → Developer |
+
+## Credits
+
+- Native pitch/time stretching uses [Signalsmith Stretch](https://github.com/Signalsmith-Audio/signalsmith-stretch) (MIT), via the official `signalsmith-stretch` JS/WASM release.
+- TIDAL playback/queue integration is TidaLuna and the TIDAL desktop client; no TIDAL code is redistributed.
 
 ## Development
 

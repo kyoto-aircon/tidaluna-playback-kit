@@ -1,4 +1,4 @@
-export const PLUGIN_VERSION = "2.17.0";
+export const PLUGIN_VERSION = "2.18.0";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 

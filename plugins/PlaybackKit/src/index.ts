@@ -213,7 +213,9 @@ const timeSyncDeps = { getSpeed: () => speedStore.get().speed, isPlaying, getPos
  * in the user's semitone offset. Shaka handles pitch preservation itself.
  */
 const effectivePitchRatio = (settings: SpeedSettings): number =>
-	shadowPitchRatio(settings.pitchSemitones, settings.speed, settings.pitchShifts, getPlayerKind() === "native" && settings.nativeEffects);
+	getPlayerKind() === "native" && settings.nativeEffects
+		? 1
+		: shadowPitchRatio(settings.pitchSemitones, settings.speed, settings.pitchShifts, false);
 
 const probeQuality = () => {
 	try {
