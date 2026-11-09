@@ -22,6 +22,7 @@ const defaults = {
 	pitchSemitones: 0,
 	presetId: null,
 	developerMode: false,
+	builtinPresets: true,
 	effects: DEFAULT_EFFECTS,
 	bounds: { min: 0.05, max: 10, step: 0.05 },
 };

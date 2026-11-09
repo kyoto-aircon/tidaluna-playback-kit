@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { DEFAULT_EFFECTS } from "../plugins/PlaybackKit/src/effectsSettings";
-import { createPresetStore, NIGHTCORE_ID, NIGHTCORE_PRESET, presetMatches, PRESETS_KEY, type PresetStorage } from "../plugins/PlaybackKit/src/presets";
+import { BUILTIN_PRESETS, createPresetStore, NIGHTCORE_ID, NIGHTCORE_PRESET, presetMatches, PRESETS_KEY, type PresetStorage } from "../plugins/PlaybackKit/src/presets";
 
 const fakeStorage = (initial?: string): PresetStorage & { value: string | null } => ({
 	value: initial ?? null,
@@ -17,12 +17,13 @@ const fakeStorage = (initial?: string): PresetStorage & { value: string | null }
 const values = { speed: 1.5, pitchShifts: false, pitchSemitones: 2, effects: DEFAULT_EFFECTS };
 
 describe("preset store", () => {
-	it("always exposes the built-in nightcore preset first", () => {
+	it("always exposes the built-in presets first", () => {
 		const presets = createPresetStore(fakeStorage()).get();
-		assert.equal(presets.length, 1);
+		assert.equal(presets.length, BUILTIN_PRESETS.length);
+		assert.deepEqual(presets.map((preset) => preset.name), ["Nightcore", "Slowcore", "Big Bass", "8D Orbit", "Dub Echo"]);
 		assert.deepEqual(presets[0], NIGHTCORE_PRESET);
-		assert.equal(presets[0].speed, 1.35);
-		assert.equal(presets[0].pitchShifts, true);
+		assert.equal(presets[2].effects.bass.enabled, true, "Big Bass uses the bass effect");
+		assert.equal(presets[1].effects.reverb.enabled, true, "Slowcore uses reverb");
 	});
 
 	it("saves custom presets and persists them", () => {
@@ -34,8 +35,8 @@ describe("preset store", () => {
 		assert.deepEqual(saved?.effects, DEFAULT_EFFECTS);
 
 		const restored = createPresetStore(storage).get();
-		assert.equal(restored.length, 2);
-		assert.deepEqual(restored[1], saved);
+		assert.equal(restored.length, BUILTIN_PRESETS.length + 1);
+		assert.deepEqual(restored.find((preset) => preset.id === saved?.id), saved);
 	});
 
 	it("rejects empty names and clamps values", () => {
@@ -53,22 +54,22 @@ describe("preset store", () => {
 		assert.equal(store.remove(NIGHTCORE_ID), false);
 		const saved = store.save("Temp", values)!;
 		assert.equal(store.remove(saved.id), true);
-		assert.equal(store.get().length, 1);
+		assert.equal(store.get().length, BUILTIN_PRESETS.length);
 		assert.equal(store.getById(saved.id), undefined);
 	});
 
 	it("ignores corrupt storage and duplicate nightcore entries", () => {
 		for (const raw of ["{not json", "{}", "null"]) {
-			assert.equal(createPresetStore(fakeStorage(raw)).get().length, 1, raw);
+			assert.equal(createPresetStore(fakeStorage(raw)).get().length, BUILTIN_PRESETS.length, raw);
 		}
 		const duplicate = JSON.stringify([
 			{ id: NIGHTCORE_ID, name: "Fake", speed: 2, pitchShifts: false, pitchSemitones: 0 },
 			{ id: "custom-1", name: "Valid", speed: 1.2, pitchShifts: false, pitchSemitones: 0 },
 		]);
 		const presets = createPresetStore(fakeStorage(duplicate)).get();
-		assert.equal(presets.length, 2);
+		assert.equal(presets.length, BUILTIN_PRESETS.length + 1);
 		assert.equal(presets[0].name, "Nightcore");
-		assert.equal(presets[1].name, "Valid");
+		assert.equal(presets[presets.length - 1].name, "Valid");
 	});
 
 	it("notifies subscribers and writes the versioned key", () => {
@@ -108,18 +109,19 @@ describe("preset editing", () => {
 		assert.equal(updated?.effects.reverb.enabled, true);
 		assert.equal(store.update(NIGHTCORE_ID, values), false);
 
+		const customNames = () => store.get().filter((preset) => preset.builtin !== true).map((preset) => preset.name);
 		assert.equal(store.move(b.id, -1), true);
-		assert.deepEqual(store.get().map((preset) => preset.name), ["Nightcore", "Beta", "Alpha 2"]);
-		assert.equal(store.move(b.id, -1), false, "cannot move above the built-in");
+		assert.deepEqual(customNames(), ["Beta", "Alpha 2"]);
+		assert.equal(store.move(b.id, -1), false, "cannot move above the built-in block");
 		assert.equal(store.move(b.id, 1), true);
-		assert.deepEqual(store.get().map((preset) => preset.name), ["Nightcore", "Alpha 2", "Beta"]);
+		assert.deepEqual(customNames(), ["Alpha 2", "Beta"]);
 	});
 
 	it("replaces the custom list from config, keeping nightcore implicit", () => {
 		const store = createPresetStore(fakeStorage());
 		store.save("Old", values);
 		store.replace([NIGHTCORE_PRESET, { id: "new-1", name: "New", speed: 2, pitchShifts: false, pitchSemitones: 1, effects: DEFAULT_EFFECTS }]);
-		assert.deepEqual(store.get().map((preset) => preset.name), ["Nightcore", "New"]);
+		assert.deepEqual(store.get().filter((preset) => preset.builtin !== true).map((preset) => preset.name), ["New"]);
 	});
 });
 

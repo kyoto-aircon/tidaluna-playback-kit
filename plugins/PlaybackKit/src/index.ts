@@ -26,7 +26,7 @@ import { getMediaElements, SpeedController } from "./mediaController";
 import { applyNativeRate, captureNativeComponent, hasNativeInstance, probeNativeComponent } from "./nativePlayer";
 import { getPitchEngineState, resetPitchEngine, setPitchSemitones } from "./pitchEngine";
 import { getPlayerKind, setPlayerKind, subscribePlayerKind, type PlayerKind } from "./playerKind";
-import { saveActivePreset } from "./presetActions";
+import { enforcePresetVisibility, saveActivePreset } from "./presetActions";
 import { presetStore, type PlaybackPreset, type PresetValues } from "./presets";
 import { speedStore } from "./state";
 import { startTimeSync, syncOnce } from "./timeSync";
@@ -228,6 +228,7 @@ const hydrateConfig = async (): Promise<void> => {
 		if (parsed !== undefined) {
 			speedStore.replace(parsed.settings);
 			presetStore.replace(parsed.presets);
+			enforcePresetVisibility(speedStore, presetStore);
 			debugLog("info", "config loaded", { path, speed: parsed.settings.speed, presets: parsed.presets.length });
 		} else {
 			await writeConfig(configSnapshot());
@@ -361,7 +362,7 @@ try {
 	void hydrateConfig();
 
 	const presetControls = {
-		list: () => presetStore.get(),
+		list: () => presetStore.get().filter((preset) => speedStore.get().builtinPresets || preset.builtin !== true),
 		apply: (preset: PlaybackPreset) => {
 			speedStore.applyPreset(preset);
 			debugLog("info", "preset applied", { id: preset.id, name: preset.name });

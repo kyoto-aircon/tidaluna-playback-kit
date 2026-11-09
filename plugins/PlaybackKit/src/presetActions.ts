@@ -29,3 +29,10 @@ export const saveActivePreset = (speedStore: SpeedStore, presetStore: PresetStor
 	presetStore.update(preset.id, values);
 	return preset;
 };
+
+/** Clears an active built-in preset when built-ins are hidden. */
+export const enforcePresetVisibility = (speedStore: SpeedStore, presetStore: PresetStore): void => {
+	const settings = speedStore.get();
+	if (settings.builtinPresets || settings.presetId === null) return;
+	if (presetStore.getById(settings.presetId)?.builtin === true) speedStore.clearPreset();
+};

@@ -9,6 +9,7 @@ import { copyReport, copyText } from "./debug";
 import { describeEffects, EQ_BANDS } from "./effectsSettings";
 import { EqSliders } from "./EqSliders";
 import { formatSemitones } from "./pitch";
+import { enforcePresetVisibility } from "./presetActions";
 import { presetMatches, presetStore, type PlaybackPreset } from "./presets";
 import { formatSpeed } from "./speed";
 import { speedStore } from "./state";
@@ -60,7 +61,9 @@ export const Settings = () => {
 		return () => clearTimeout(timer);
 	}, [configStatus]);
 
-	const { bounds, pitchShifts, developerMode, effects } = settings;
+	const { bounds, pitchShifts, developerMode, effects, builtinPresets } = settings;
+	const visiblePresets = builtinPresets ? presets : presets.filter((preset) => preset.builtin !== true);
+	const firstCustomIndex = visiblePresets.findIndex((preset) => preset.builtin !== true);
 
 	const setEq = (patch: Partial<typeof effects.eq>) => speedStore.setEffects({ ...effects, eq: { ...effects.eq, ...patch } });
 	const setBass = (patch: Partial<typeof effects.bass>) => speedStore.setEffects({ ...effects, bass: { ...effects.bass, ...patch } });
@@ -73,6 +76,7 @@ export const Settings = () => {
 		if (config === undefined) return false;
 		speedStore.replace(config.settings);
 		presetStore.replace(config.presets);
+		enforcePresetVisibility(speedStore, presetStore);
 		await writeConfig(serializeConfig(config.settings, config.presets));
 		return true;
 	};
@@ -175,8 +179,18 @@ export const Settings = () => {
 			</Section>
 
 			<Section>
-				<LunaSettings title="Presets" desc="Capture speed, pitch and effects. Nightcore is fixed; custom presets can be applied, renamed, updated, reordered and deleted.">
-					{presets.map((preset, index) => {
+				<LunaSettings title="Presets" desc="Capture speed, pitch and effects. Built-ins are fixed; custom presets can be applied, renamed, updated, reordered and deleted.">
+					<LunaSwitchSetting
+						title="Built-in presets"
+						desc="Show Nightcore, Slowcore, Big Bass, 8D Orbit and Dub Echo."
+						checked={builtinPresets}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+							const enabled = e.target.checked;
+							speedStore.setBuiltinPresets(enabled);
+							enforcePresetVisibility(speedStore, presetStore);
+						}}
+					/>
+					{visiblePresets.map((preset, index) => {
 						const dirty = settings.presetId === preset.id && !presetMatches(preset, settings);
 						return (
 						<LunaSetting key={preset.id} title={`${preset.name}${dirty ? " *" : ""}`} desc={describePreset(preset)}>
@@ -198,10 +212,10 @@ export const Settings = () => {
 										<LunaButton size="small" variant="outlined" onClick={() => overwritePreset(preset)}>
 											Update
 										</LunaButton>
-										<LunaButton size="small" variant="text" disabled={index <= 1} title="Move up" onClick={() => presetStore.move(preset.id, -1)}>
+										<LunaButton size="small" variant="text" disabled={index <= firstCustomIndex} title="Move up" onClick={() => presetStore.move(preset.id, -1)}>
 											↑
 										</LunaButton>
-										<LunaButton size="small" variant="text" disabled={index >= presets.length - 1} title="Move down" onClick={() => presetStore.move(preset.id, 1)}>
+										<LunaButton size="small" variant="text" disabled={index >= visiblePresets.length - 1} title="Move down" onClick={() => presetStore.move(preset.id, 1)}>
 											↓
 										</LunaButton>
 										<LunaButton size="small" variant="text" color="error" onClick={() => removePreset(preset)}>

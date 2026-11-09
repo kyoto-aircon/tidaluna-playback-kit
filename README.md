@@ -40,7 +40,7 @@ current audio chain — all following TIDAL's theme, fonts and type scale.
 | 🥁 **Bass boost** | Parallel 90 Hz shelf up to +24 dB, 45 Hz sub shelf, saturation drive for dirty kicks, and a safety limiter at the end of the chain. |
 | ⏱️ **Delay** | 20–2000 ms, feedback and wet mix. |
 | 🏛️ **Reverb** | Generated impulse response, 0.2–8 s decay and wet mix. |
-| ⭐ **Presets** | Save speed, pitch and effects. **Nightcore** is built in at `1.35×` with pitch following speed. Editing anything while a preset is active marks it with `*` (unsaved). **Save preset** pre-fills the active name: same name overwrites a custom preset, a built-in pre-fills `<name> (edited)` to save a copy. Choose **Custom** to clear it. |
+| ⭐ **Presets** | Save speed, pitch and effects. Five built-ins showcase the features: **Nightcore**, **Slowcore**, **Big Bass**, **8D Orbit**, **Dub Echo** — hide them all with one switch if you only want your own. Editing anything while a preset is active marks it with `*` (unsaved). **Save preset** pre-fills the active name: same name overwrites a custom preset, a built-in pre-fills `<name> (edited)` to save a copy. Choose **Custom** to clear it. |
 | 🎨 **Theme-aware** | Colours, fonts and rem sizes come from TIDAL's own tokens and the app root — TidaLuna themes apply automatically. |
 | 🧭 **Honest scrubber** | At any rate other than 1× the plugin re-feeds the real position so audio and progress bar stay aligned. |
 | 🩺 **Developer mode** | Off by default. Enables logs, Copy diagnostics and an **audio engine self-test** that measures captured RMS. |
@@ -109,7 +109,8 @@ TIDAL streaming quality to High. It remembers your previous quality and offers *
 
 A preset is a snapshot of **speed + pitch mode + pitch offset + all effects**.
 
-- **Nightcore** is built in (`1.35×`, pitch follows speed), cannot be edited or removed.
+- Built-ins (cannot be edited or removed): **Nightcore** (1.35×, pitch follows speed), **Slowcore** (0.8×, pitch follows speed + reverb), **Big Bass** (EQ + 14 dB bass boost and drive), **8D Orbit** (auto-pan + pitch wobble), **Dub Echo** (feedback delay).
+- **Built-in presets** switch in Luna settings hides them entirely; an active built-in drops back to Custom.
 NaN
 
 ## Config file
@@ -134,6 +135,7 @@ folder**, **Reload**, **Import…** and **Export…**.
     "pitchSemitones": 0,
     "presetId": "nightcore",
     "developerMode": false,
+    "builtinPresets": true,
     "effects": {
       "eq": { "enabled": true, "bands": [4, 2, 0, -2, -1, 0, 2, 3] },
       "bass": { "enabled": true, "boost": 8, "sub": 4, "drive": 0.35, "mix": 0.7 },

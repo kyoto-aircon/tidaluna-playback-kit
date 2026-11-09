@@ -11,6 +11,7 @@ const settings = {
 	pitchSemitones: 0,
 	presetId: "nightcore",
 	developerMode: false,
+	builtinPresets: true,
 	effects: DEFAULT_EFFECTS,
 	bounds: { min: 0.05, max: 10, step: 0.01 },
 };

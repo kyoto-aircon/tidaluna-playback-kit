@@ -17,6 +17,8 @@ export interface SpeedSettings {
 	presetId: string | null;
 	/** Writes logs and shows the Copy diagnostics actions. */
 	developerMode: boolean;
+	/** Show the stock presets in the pickers. */
+	builtinPresets: boolean;
 	/** Delay / reverb / EQ settings. */
 	effects: EffectsSettings;
 	/** Slider range and snap increment. */
@@ -36,6 +38,7 @@ const defaults = (): SpeedSettings => ({
 	pitchSemitones: PITCH_DEFAULT,
 	presetId: null,
 	developerMode: false,
+	builtinPresets: true,
 	effects: normalizeEffects(undefined),
 	bounds: { ...DEFAULT_BOUNDS },
 });
@@ -58,6 +61,7 @@ const parseSettings = (raw: string | null): SpeedSettings => {
 		pitchSemitones,
 		presetId: typeof record.presetId === "string" ? record.presetId : null,
 		developerMode: record.developerMode === true,
+		builtinPresets: record.builtinPresets !== false,
 		effects: normalizeEffects(record.effects),
 		bounds,
 	};
@@ -80,6 +84,7 @@ const sameSettings = (a: SpeedSettings, b: SpeedSettings): boolean =>
 	a.pitchSemitones === b.pitchSemitones &&
 	a.presetId === b.presetId &&
 	a.developerMode === b.developerMode &&
+	a.builtinPresets === b.builtinPresets &&
 	JSON.stringify(a.effects) === JSON.stringify(b.effects) &&
 	a.bounds.min === b.bounds.min &&
 	a.bounds.max === b.bounds.max &&
@@ -154,6 +159,9 @@ export const createSpeedStore = (storage: StorageLike, key: string = STORAGE_KEY
 		setDeveloperMode(developerMode: boolean): void {
 			commit({ ...settings, developerMode });
 		},
+		setBuiltinPresets(builtinPresets: boolean): void {
+			commit({ ...settings, builtinPresets });
+		},
 		clearPreset(): void {
 			commit({ ...settings, presetId: null });
 		},
@@ -167,6 +175,7 @@ export const createSpeedStore = (storage: StorageLike, key: string = STORAGE_KEY
 				pitchSemitones: semitones,
 				presetId: typeof next.presetId === "string" ? next.presetId : null,
 				developerMode: next.developerMode === true,
+				builtinPresets: next.builtinPresets !== false,
 				effects: normalizeEffects(next.effects),
 				bounds,
 			});

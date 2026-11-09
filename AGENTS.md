@@ -78,3 +78,8 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 
 - `npm run release` uploads dist/* to the mutable `latest` release **and** mirrors the same files to the `release` branch via the Git Data API.
 - The public store URL is `https://raw.githubusercontent.com/kyoto-aircon/tidaluna-playback-kit/release/store.json` (raw has CORS `*`). GitHub’s `releases/download/latest` path has returned 504 across repos, so do not use it as the primary store URL.
+
+## Built-in presets
+
+- `BUILTIN_PRESETS` = Nightcore, Slowcore, Big Bass, 8D Orbit, Dub Echo (ids `nightcore`, `slowcore`, `big-bass`, `eight-d`, `dub-echo`). They are implicit (never stored in config) and `BUILTIN_IDS` blocks rename/update/move/delete.
+- `settings.builtinPresets` (default true) filters them out of the pickers via the `list` option and Settings; `enforcePresetVisibility` clears an active built-in when hidden.

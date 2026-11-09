@@ -1,4 +1,13 @@
-import { DEFAULT_EFFECTS, normalizeEffects, type EffectsSettings } from "./effectsSettings";
+import {
+	DEFAULT_EFFECTS,
+	normalizeEffects,
+	type BassSettings,
+	type DelaySettings,
+	type EffectsSettings,
+	type EightDSettings,
+	type EqSettings,
+	type ReverbSettings,
+} from "./effectsSettings";
 import { clampSemitones } from "./pitch";
 import { createBrowserStorage } from "./state";
 
@@ -30,15 +39,81 @@ export interface PresetStorage {
 
 export const PRESETS_KEY = "tidaluna.playback-kit.presets.v1";
 export const NIGHTCORE_ID = "nightcore";
+
+type EffectsOverrides = {
+	eq?: Partial<EqSettings>;
+	bass?: Partial<BassSettings>;
+	eightD?: Partial<EightDSettings>;
+	delay?: Partial<DelaySettings>;
+	reverb?: Partial<ReverbSettings>;
+};
+
+const effectsOf = (overrides: EffectsOverrides): EffectsSettings =>
+	normalizeEffects({
+		...DEFAULT_EFFECTS,
+		...overrides,
+		eq: { ...DEFAULT_EFFECTS.eq, ...(overrides.eq ?? {}) },
+		bass: { ...DEFAULT_EFFECTS.bass, ...(overrides.bass ?? {}) },
+		eightD: { ...DEFAULT_EFFECTS.eightD, ...(overrides.eightD ?? {}) },
+		delay: { ...DEFAULT_EFFECTS.delay, ...(overrides.delay ?? {}) },
+		reverb: { ...DEFAULT_EFFECTS.reverb, ...(overrides.reverb ?? {}) },
+	});
+
 export const NIGHTCORE_PRESET: PlaybackPreset = {
 	id: NIGHTCORE_ID,
 	name: "Nightcore",
 	speed: 1.35,
 	pitchShifts: true,
 	pitchSemitones: 0,
-	effects: normalizeEffects(DEFAULT_EFFECTS),
+	effects: effectsOf({}),
 	builtin: true,
 };
+
+export const SLOWCORE_PRESET: PlaybackPreset = {
+	id: "slowcore",
+	name: "Slowcore",
+	speed: 0.8,
+	pitchShifts: true,
+	pitchSemitones: 0,
+	effects: effectsOf({ reverb: { enabled: true, decay: 4, mix: 0.35 } }),
+	builtin: true,
+};
+
+export const BIG_BASS_PRESET: PlaybackPreset = {
+	id: "big-bass",
+	name: "Big Bass",
+	speed: 1,
+	pitchShifts: false,
+	pitchSemitones: 0,
+	effects: effectsOf({
+		eq: { enabled: true, bands: [3, 2, 0, 0, 0, 0, 0, 1] },
+		bass: { enabled: true, boost: 14, sub: 6, drive: 0.5, mix: 1 },
+	}),
+	builtin: true,
+};
+
+export const EIGHT_D_PRESET: PlaybackPreset = {
+	id: "eight-d",
+	name: "8D Orbit",
+	speed: 1,
+	pitchShifts: false,
+	pitchSemitones: 0,
+	effects: effectsOf({ eightD: { enabled: true, rate: 0.1, panDepth: 0.85, pitchRate: 0.3, pitchDepth: 4 } }),
+	builtin: true,
+};
+
+export const DUB_ECHO_PRESET: PlaybackPreset = {
+	id: "dub-echo",
+	name: "Dub Echo",
+	speed: 1,
+	pitchShifts: false,
+	pitchSemitones: 0,
+	effects: effectsOf({ delay: { enabled: true, timeMs: 450, feedback: 0.45, mix: 0.28 } }),
+	builtin: true,
+};
+
+export const BUILTIN_PRESETS: readonly PlaybackPreset[] = [NIGHTCORE_PRESET, SLOWCORE_PRESET, BIG_BASS_PRESET, EIGHT_D_PRESET, DUB_ECHO_PRESET];
+const BUILTIN_IDS = new Set(BUILTIN_PRESETS.map((preset) => preset.id));
 
 const MAX_NAME_LENGTH = 24;
 const MIN_SPEED = 0.05;
@@ -61,7 +136,7 @@ const parseCustomPreset = (raw: unknown, seen: Set<string>): PlaybackPreset | un
 	const record = raw as Record<string, unknown>;
 	const id = typeof record.id === "string" ? record.id : undefined;
 	const name = sanitizeName(record.name);
-	if (id === undefined || name === undefined || id === NIGHTCORE_ID || seen.has(id)) return undefined;
+	if (id === undefined || name === undefined || BUILTIN_IDS.has(id) || seen.has(id)) return undefined;
 	seen.add(id);
 	return {
 		id,
@@ -136,7 +211,7 @@ export const createPresetStore = (storage: PresetStorage, key: string = PRESETS_
 		}
 	};
 
-	const get = (): PlaybackPreset[] => [{ ...NIGHTCORE_PRESET }, ...customs.map((preset) => ({ ...preset }))];
+	const get = (): PlaybackPreset[] => [...BUILTIN_PRESETS.map((preset) => ({ ...preset })), ...customs.map((preset) => ({ ...preset }))];
 
 	return {
 		get,
@@ -161,7 +236,7 @@ export const createPresetStore = (storage: PresetStorage, key: string = PRESETS_
 			return { ...preset };
 		},
 		remove(id: string): boolean {
-			if (id === NIGHTCORE_ID) return false;
+			if (BUILTIN_IDS.has(id)) return false;
 			const next = customs.filter((preset) => preset.id !== id);
 			if (next.length === customs.length) return false;
 			customs = next;
@@ -170,7 +245,7 @@ export const createPresetStore = (storage: PresetStorage, key: string = PRESETS_
 			return true;
 		},
 		rename(id: string, name: unknown): boolean {
-			if (id === NIGHTCORE_ID) return false;
+			if (BUILTIN_IDS.has(id)) return false;
 			const safeName = sanitizeName(name);
 			const preset = customs.find((entry) => entry.id === id);
 			if (safeName === undefined || preset === undefined) return false;
@@ -180,7 +255,7 @@ export const createPresetStore = (storage: PresetStorage, key: string = PRESETS_
 			return true;
 		},
 		update(id: string, values: PresetValues): boolean {
-			if (id === NIGHTCORE_ID) return false;
+			if (BUILTIN_IDS.has(id)) return false;
 			const preset = customs.find((entry) => entry.id === id);
 			if (preset === undefined) return false;
 			preset.speed = sanitizeSpeed(values.speed);
@@ -192,7 +267,7 @@ export const createPresetStore = (storage: PresetStorage, key: string = PRESETS_
 			return true;
 		},
 		move(id: string, direction: number): boolean {
-			if (id === NIGHTCORE_ID) return false;
+			if (BUILTIN_IDS.has(id)) return false;
 			const index = customs.findIndex((entry) => entry.id === id);
 			const target = index + Math.sign(direction);
 			if (index < 0 || target < 0 || target >= customs.length) return false;
