@@ -83,3 +83,9 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 
 - `BUILTIN_PRESETS` = Nightcore, Daycore, Slowcore, Chipmunk, Vaporwave, Big Bass, Submerge, 8D Orbit, Dub Echo, Clear Voice (ids `nightcore`, `daycore`, `slowcore`, `chipmunk`, `vaporwave`, `big-bass`, `submerge`, `eight-d`, `dub-echo`, `clear-voice`). They are implicit (never stored in config) and `BUILTIN_IDS` blocks rename/update/move/delete.
 - `settings.builtinPresets` (default true) filters them out of the pickers via the `list` option and Settings; `enforcePresetVisibility` clears an active built-in when hidden.
+
+## Live reload / reset safety
+
+- AudioContext, `MediaElementSource`s and registered worklet names are persisted on `globalThis` (`__playbackKitAudioState`, `__playbackKitWorklets`) so a live reload reuses them; `ensureChain` disconnects old sources and reconnects them to the new chain, orphaning stale effect graphs.
+- This was added because a live reload used to leave the previous effects graph connected: store reset worked but audio kept the old reverb. After installing the version that introduced persistence, restart TIDAL once to clear pre-persistence graphs.
+- `updateEffects` now applies zeroed params even if the context is suspended (only *enabling* needs `running`), and `resetEffectsEngine` zeroes the graph on unload.

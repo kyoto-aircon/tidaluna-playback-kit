@@ -288,7 +288,7 @@ export const updateEffects = async (effects: EffectsSettings, elements: HTMLMedi
 	}
 	try {
 		const ctx = await ensureContext();
-		if (ctx.state !== "running") {
+		if (ctx.state !== "running" && enabled) {
 			state = { built: graph !== undefined, context: ctx.state, active: [], error: "audio context suspended (interact with the page)", attached: getStatus().sources };
 			return;
 		}
@@ -316,4 +316,29 @@ export const updateEffects = async (effects: EffectsSettings, elements: HTMLMedi
 		state = { built: graph !== undefined, context: getStatus().context, active: [], error: message, attached: getStatus().sources };
 		debugLog("warn", "effects engine unavailable", { error: message });
 	}
+};
+
+/** Zeroes every effect (plugin unload / live reload). */
+export const resetEffectsEngine = (): void => {
+	if (graph !== undefined) {
+		const now = graph.eqFilters[0].context.currentTime;
+		const smooth = 0.03;
+		for (const filter of graph.eqFilters) filter.gain.setTargetAtTime(0, now, smooth);
+		graph.bassWet.gain.setTargetAtTime(0, now, smooth);
+		graph.bassDry.gain.setTargetAtTime(1, now, smooth);
+		graph.bassSub.gain.setTargetAtTime(0, now, smooth);
+		graph.bassBoost.gain.setTargetAtTime(0, now, smooth);
+		graph.bassDrive.gain.setTargetAtTime(1, now, smooth);
+		graph.eightDWet.gain.setTargetAtTime(0, now, smooth);
+		graph.eightDDry.gain.setTargetAtTime(1, now, smooth);
+		graph.panDepth.gain.setTargetAtTime(0, now, smooth);
+		graph.pitchDepthL.gain.setTargetAtTime(0, now, smooth);
+		graph.pitchDepthR.gain.setTargetAtTime(0, now, smooth);
+		graph.delayWet.gain.setTargetAtTime(0, now, smooth);
+		graph.delayDry.gain.setTargetAtTime(1, now, smooth);
+		graph.delayFeedback.gain.setTargetAtTime(0, now, smooth);
+		graph.reverbWet.gain.setTargetAtTime(0, now, smooth);
+		graph.reverbDry.gain.setTargetAtTime(1, now, smooth);
+	}
+	state = { ...state, active: [], error: undefined };
 };

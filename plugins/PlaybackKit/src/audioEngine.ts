@@ -32,7 +32,11 @@ const WORKLET_LOAD_TIMEOUT_MS = 400;
 const RMS_SAMPLE_MS = 100;
 const SILENT_RMS = 0.0005;
 
-let context: AudioContext | undefined;
+type PersistedAudioState = { context?: AudioContext; sources: Map<HTMLMediaElement, MediaElementAudioSourceNode> };
+const PERSIST_KEY = "__playbackKitAudioState";
+const persisted: PersistedAudioState = ((globalThis as Record<string, unknown>)[PERSIST_KEY] ??= { sources: new Map() }) as PersistedAudioState;
+
+let context: AudioContext | undefined = persisted.context;
 let chainIn: GainNode | undefined;
 let chainOut: GainNode | undefined;
 let analyser: AnalyserNode | undefined;
@@ -43,10 +47,11 @@ interface ChainItem {
 
 let chain: ChainItem[] = [];
 
-const sources = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
-let sourceCount = 0;
+const sources: Map<HTMLMediaElement, MediaElementAudioSourceNode> = persisted.sources;
 
 const worklets = new Map<string, Promise<void>>();
+const WORKLET_KEY = "__playbackKitWorklets";
+const registeredWorklets: Set<string> = ((globalThis as Record<string, unknown>)[WORKLET_KEY] ??= new Set()) as Set<string>;
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -55,6 +60,7 @@ export const ensureContext = async (): Promise<AudioContext> => {
 		const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
 		if (Ctor === undefined) throw new Error("Web Audio is unavailable");
 		context = new Ctor({ latencyHint: "playback" });
+		persisted.context = context;
 		debugLog("info", "audio context created", { sampleRate: context.sampleRate, state: context.state });
 	}
 	if (context.state === "suspended") {
@@ -94,6 +100,15 @@ const ensureChain = async (): Promise<{ ctx: AudioContext; input: GainNode; outp
 		analyser.fftSize = 2048;
 		chainOut.connect(analyser);
 		chainOut.connect(ctx.destination);
+		// After a live reload the old graph may still own the sources; move them to this chain.
+		for (const source of sources.values()) {
+			try {
+				source.disconnect();
+			} catch {
+				// Not connected yet.
+			}
+			source.connect(chainIn);
+		}
 	}
 	rebuild();
 	return { ctx, input: chainIn, output: chainOut };
@@ -101,6 +116,7 @@ const ensureChain = async (): Promise<{ ctx: AudioContext; input: GainNode; outp
 
 export const loadWorklet = async (source: string, name: string): Promise<void> => {
 	if (worklets.has(name)) return worklets.get(name);
+	if (registeredWorklets.has(name)) return;
 	const ctx = await ensureContext();
 	const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
 	const load = (async (): Promise<void> => {
@@ -120,6 +136,7 @@ export const loadWorklet = async (source: string, name: string): Promise<void> =
 	worklets.set(name, load);
 	try {
 		await load;
+		registeredWorklets.add(name);
 	} catch (err) {
 		worklets.delete(name);
 		throw err;
@@ -135,8 +152,7 @@ export const attach = async (element: HTMLMediaElement): Promise<void> => {
 	const source = ctx.createMediaElementSource(element);
 	source.connect(input);
 	sources.set(element, source);
-	sourceCount += 1;
-	debugLog("info", "audio engine attached element", { id: element.id, sources: sourceCount });
+	debugLog("info", "audio engine attached element", { id: element.id, sources: sources.size });
 };
 
 export const insert = async (node: AudioNode, index?: number): Promise<void> => {
@@ -172,7 +188,7 @@ export const list = (): AudioNode[] => chain.map((item) => item.input);
 export const getStatus = (): AudioEngineStatus => ({
 	context: context === undefined ? "none" : context.state,
 	sampleRate: context?.sampleRate,
-	sources: sourceCount,
+	sources: sources.size,
 	nodes: chain.length,
 });
 

@@ -7,7 +7,7 @@ import { getConfigPath, readConfig, writeConfig } from "./config.native";
 import { exposeAudioEngine, getStatus as getAudioEngineStatus, hideAudioEngine } from "./audioEngine";
 import { setupSpeedControl } from "./control";
 import { hasAudibleEffects } from "./effectsSettings";
-import { getEffectsEngineState, updateEffects } from "./effectsEngine";
+import { getEffectsEngineState, resetEffectsEngine, updateEffects } from "./effectsEngine";
 import {
 	buildReport,
 	clearLogs,
@@ -422,6 +422,7 @@ try {
 		unsubscribe();
 		controller.stop();
 		resetPitchEngine();
+		resetEffectsEngine();
 	});
 
 	trace.log("loaded");
