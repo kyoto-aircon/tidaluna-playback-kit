@@ -320,28 +320,49 @@ const openLunaSettings = (): void => {
 	}
 };
 
-const useBrowserPlayer = (): void => {
+const currentQuality = (): string | null => {
 	try {
 		const state = redux.store.getState() as { settings?: { quality?: { streaming?: string } } };
-		const before = state.settings?.quality?.streaming;
-		if (before === "HIGH") {
-			debugLog("info", "already on the browser player quality");
-			return;
-		}
-		debugLog("info", "switching streaming quality to HIGH", { from: before });
-		if (typeof before === "string") rememberQuality(before);
-		setStreamingQuality("HIGH");
-	} catch (err) {
-		debugLog("error", "quality switch failed", { error: String(err) });
+		return state.settings?.quality?.streaming ?? null;
+	} catch {
+		return null;
 	}
 };
 
-const restoreQuality = (): void => {
+const applyQuality = (target: string): boolean => {
+	setStreamingQuality(target);
+	return currentQuality() === target;
+};
+
+const useBrowserPlayer = (): boolean => {
+	try {
+		const before = currentQuality();
+		if (before === "HIGH") {
+			debugLog("info", "already on the browser player quality");
+			return true;
+		}
+		debugLog("info", "switching streaming quality to HIGH", { from: before });
+		const applied = applyQuality("HIGH");
+		if (!applied) {
+			debugLog("error", "quality switch was not applied", { before });
+			return false;
+		}
+		if (before !== null) rememberQuality(before);
+		return true;
+	} catch (err) {
+		debugLog("error", "quality switch failed", { error: String(err) });
+		return false;
+	}
+};
+
+const restoreQuality = (): boolean => {
 	const previous = readPreviousQuality();
-	if (previous === null) return;
+	if (previous === null) return false;
 	debugLog("info", "restoring streaming quality", { to: previous });
-	setStreamingQuality(previous);
-	forgetQuality();
+	const applied = applyQuality(previous);
+	if (applied) forgetQuality();
+	else debugLog("error", "quality restore was not applied", { previous });
+	return applied;
 };
 
 const streamReport = () => {
@@ -472,7 +493,7 @@ try {
 		presets: presetControls,
 		getPitchEngineState,
 		openSettings: openLunaSettings,
-		enableNativeEffects: () => speedStore.setNativeEffects(true),
+		setNativeEffects: (enabled) => speedStore.setNativeEffects(enabled),
 		onOpen: () => {
 			const current = speedStore.get();
 			void setPitchRatio(effectivePitchRatio(current), current.pitchSemitones, getMediaElements());
@@ -496,7 +517,6 @@ try {
 		setPlayerKind(next);
 		if (next !== previous && next === "native") {
 			applyNativeRate(speedStore.get().speed);
-			forgetQuality();
 		}
 	}, PLAYER_POLL_MS);
 

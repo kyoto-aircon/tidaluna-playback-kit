@@ -72,6 +72,8 @@ export interface NativeStreamState {
 	load?: NativeStreamCapture;
 	preload?: NativeStreamCapture;
 	seek?: { time: number; at: number };
+	/** User play/pause intent captured from TIDAL's active player. */
+	transport?: { value: "playing" | "paused"; at: number };
 }
 
 const STREAM_KEY = "__playbackKitNativeStreams";
@@ -81,6 +83,7 @@ export const getNativeStreamState = (): NativeStreamState => ({
 	load: streamState.load === undefined ? undefined : { ...streamState.load },
 	preload: streamState.preload === undefined ? undefined : { ...streamState.preload },
 	seek: streamState.seek === undefined ? undefined : { ...streamState.seek },
+	transport: streamState.transport === undefined ? undefined : { ...streamState.transport },
 });
 
 const patchStreamPrototype = (player: object): void => {
@@ -115,7 +118,17 @@ const patchStreamPrototype = (player: object): void => {
 			return (originalSeek as (...inner: unknown[]) => unknown).apply(this, args);
 		};
 	}
-	debugLog("info", "native stream capture patched", { methods: ["load", "next", "seek"] });
+	const wrapTransport = (method: "play" | "pause", value: "playing" | "paused"): void => {
+		const original = prototype[method];
+		if (typeof original !== "function") return;
+		prototype[method] = function patchedTransport(this: unknown, ...args: unknown[]): unknown {
+			streamState.transport = { value, at: Date.now() };
+			return (original as (...inner: unknown[]) => unknown).apply(this, args);
+		};
+	};
+	wrapTransport("play", "playing");
+	wrapTransport("pause", "paused");
+	debugLog("info", "native stream capture patched", { methods: ["load", "next", "seek", "play", "pause"] });
 };
 
 /** Applies the stream capture to the current active player. Idempotent. */
@@ -232,15 +245,17 @@ export const seekNative = (time: number): void => {
 };
 
 /** Seeks and plays the native renderer (used to trigger its `completed` signal). */
-export const playNativeAt = (time: number, volume: number): void => {
+export const playNativeAt = (time: number, volume: number): boolean => {
 	const target = getControl();
-	if (target === undefined) return;
+	if (target === undefined) return false;
 	try {
 		if (typeof target.setVolume === "function") target.setVolume(Math.round(Math.max(0, Math.min(1, volume)) * 100));
 		if (typeof target.seek === "function") target.seek(Math.max(0, time));
 		if (typeof target.play === "function") target.play();
+		return typeof target.play === "function";
 	} catch (err) {
 		debugLog("error", "native seek/play failed", { error: String(err) });
+		return false;
 	}
 };
 

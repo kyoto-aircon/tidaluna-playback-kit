@@ -7,7 +7,7 @@ import { hasAudibleEffects } from "./effectsSettings";
 import { getNativeStreamState } from "./nativePlayer";
 import { getPlayerKind } from "./playerKind";
 import { preparePreload, prepareStream, readBridge, readTrack, releaseTrack } from "./nativeProbe.native";
-import { stretchSemitones } from "./shadowMath";
+import { resolveTransport, stretchSemitones } from "./shadowMath";
 import { ensureStretch, resetStretch } from "./stretch";
 import type { SpeedSettings } from "./state";
 
@@ -24,7 +24,7 @@ export interface ShadowDeps {
 	setNativeVolume: (volume: number) => void;
 	getDesiredVolume?: () => number | undefined;
 	pauseNative?: () => void;
-	playNativeAt?: (time: number, volume: number) => void;
+	playNativeAt?: (time: number, volume: number) => boolean;
 	seekNative?: (time: number) => void;
 	getSettings: () => SpeedSettings;
 }
@@ -34,8 +34,10 @@ export interface ShadowStatus {
 	engine: "signalsmith";
 	bufferSeconds: number | null;
 	playing: boolean;
+	userPlaying: boolean;
 	muted: boolean;
 	nativePaused: boolean;
+	ending: boolean;
 	rate: number;
 	loadAt: number | null;
 	error?: string;
@@ -65,6 +67,12 @@ let sourcePlaying = false;
 let muted = false;
 let nativePaused = false;
 let ending = false;
+let endingAt = 0;
+let userPlaying = true;
+let hasIntent = false;
+let lastTransportAt = 0;
+let rateTimer: ReturnType<typeof setTimeout> | undefined;
+let latestSettings: SpeedSettings | undefined;
 let lastPollAt = 0;
 let lastSeekAt = 0;
 let error: string | undefined;
@@ -118,13 +126,37 @@ const resumeNativeIfPaused = (): void => {
 	if (!nativePaused || deps === undefined) return;
 	const position = channels === undefined ? (deps.getNativePosition() ?? 0) : currentPosition();
 	deps.seekNative?.(position);
-	if (deps.isPlaying()) deps.playNativeAt?.(position, desiredVolume);
+	if (userPlaying) deps.playNativeAt?.(position, desiredVolume);
 	else deps.setNativeVolume(desiredVolume);
 	nativePaused = false;
 };
 
 const pitchSemitones = (settings: SpeedSettings): number =>
 	stretchSemitones(settings.pitchSemitones, settings.speed, settings.pitchShifts);
+
+/** Applies a rate/pitch change to the running stretch node immediately. */
+const applyRate = async (settings: SpeedSettings): Promise<void> => {
+	if (!sourcePlaying || stretchNode === undefined || deps === undefined) return;
+	const speed = settings.speed;
+	const pitch = pitchSemitones(settings);
+	if (Math.abs(sourceRate - speed) < 1e-4 && Math.abs(sourcePitch - pitch) < 1e-4) return;
+	const position = currentPosition();
+	await stretchNode.schedule({ output: stretchNode.context.currentTime + 0.02, rate: speed, semitones: pitch });
+	sourceOffset = position;
+	sourceStartedAt = stretchNode.context.currentTime + 0.02;
+	sourceRate = speed;
+	sourcePitch = pitch;
+	if (Math.abs(speed - 1) > 1e-3) {
+		setMuted(true);
+		if (!nativePaused) {
+			deps.pauseNative?.();
+			nativePaused = true;
+		}
+	} else if (nativePaused) {
+		deps.playNativeAt?.(position, 0);
+		nativePaused = false;
+	}
+};
 
 const startAt = async (position: number, followNative = true): Promise<void> => {
 	if (channels === undefined) return;
@@ -138,6 +170,7 @@ const startAt = async (position: number, followNative = true): Promise<void> => 
 
 	stopSource();
 	ending = false;
+	endingAt = 0;
 	const node = await ensureStretch(ctx);
 	const gain = await ensureGain(ctx);
 	if (stretchNode !== node) {
@@ -256,6 +289,21 @@ const runTick = async (): Promise<void> => {
 		if (shadowGain !== undefined) shadowGain.gain.value = desiredVolume;
 	}
 
+	const transport = getNativeStreamState().transport;
+	const resolved = resolveTransport(
+		{ playing: userPlaying, hasIntent, lastAt: lastTransportAt },
+		transport,
+		deps.isPlaying(),
+	);
+	if (resolved !== undefined) {
+		if (resolved.lastAt !== lastTransportAt && resolved.hasIntent) {
+			debugLog("info", "shadow transport intent", { value: resolved.playing ? "playing" : "paused" });
+		}
+		userPlaying = resolved.playing;
+		hasIntent = resolved.hasIntent;
+		lastTransportAt = resolved.lastAt;
+	}
+
 	const now = Date.now();
 	if (now - lastPollAt >= POLL_MS) {
 		lastPollAt = now;
@@ -273,6 +321,7 @@ const runTick = async (): Promise<void> => {
 			trackDuration = 0;
 			phase = "preparing";
 			ending = false;
+			endingAt = 0;
 			nativePaused = false;
 			lastSeekAt = streams.seek?.at ?? 0;
 			stopSource();
@@ -310,7 +359,7 @@ const runTick = async (): Promise<void> => {
 	if (seek !== undefined && seek.at !== lastSeekAt) {
 		lastSeekAt = seek.at;
 		if (channels !== undefined) {
-			if (deps.isPlaying()) await startAt(seek.time, false);
+			if (userPlaying) await startAt(seek.time, false);
 			else {
 				if (sourcePlaying) stopSource();
 				sourceOffset = Math.max(0, seek.time);
@@ -320,32 +369,26 @@ const runTick = async (): Promise<void> => {
 	}
 	if (channels === undefined) return;
 	if (muted) deps.setNativeVolume(0);
-	if (ending) return;
-
-	const currentPitch = pitchSemitones(deps.getSettings());
-	if (sourcePlaying && stretchNode !== undefined && (Math.abs(sourceRate - speed) > 1e-4 || Math.abs(sourcePitch - currentPitch) > 1e-4)) {
-		const position = currentPosition();
-		await stretchNode.schedule({ output: stretchNode.context.currentTime + 0.05, rate: speed, semitones: currentPitch });
-		sourceOffset = position;
-		sourceStartedAt = stretchNode.context.currentTime + 0.05;
-		sourceRate = speed;
-		sourcePitch = currentPitch;
-		if (fast && !nativePaused) {
-			setMuted(true);
-			deps.pauseNative?.();
-			nativePaused = true;
-		} else if (!fast && nativePaused) {
-			deps.playNativeAt?.(position, 0);
+	if (ending) {
+		if (endingAt !== 0 && Date.now() - endingAt > 1500) {
+			ending = false;
+			endingAt = 0;
 			nativePaused = false;
+			const ok = deps.playNativeAt?.(Math.max(0, trackDuration - 0.25), desiredVolume) ?? false;
+			debugLog("warn", "shadow end watchdog fired", { ok });
 		}
+		return;
 	}
 
-	const playing = deps.isPlaying();
+	if (sourcePlaying) await applyRate(deps.getSettings());
+
+	const playing = userPlaying;
 	if (!playing) {
 		if (sourcePlaying) {
 			sourceOffset = currentPosition();
 			stopSource();
 		}
+		resumeNativeIfPaused();
 		setMuted(false);
 		if (!fast) {
 			const paused = deps.getNativePosition();
@@ -362,6 +405,7 @@ const runTick = async (): Promise<void> => {
 		if (currentPosition() >= trackDuration - 0.06) {
 			stopSource();
 			ending = true;
+			endingAt = Date.now();
 			deps.playNativeAt?.(Math.max(0, trackDuration - 0.25), 0);
 			nativePaused = false;
 		}
@@ -400,6 +444,22 @@ const tick = (): void => {
 
 export const updateShadowPlayer = (settings: SpeedSettings): void => {
 	enabled = settings.nativeEffects;
+	latestSettings = settings;
+	if (!enabled) {
+		if (rateTimer !== undefined) {
+			clearTimeout(rateTimer);
+			rateTimer = undefined;
+		}
+		return;
+	}
+	if (!sourcePlaying) return;
+	if (rateTimer !== undefined) clearTimeout(rateTimer);
+	rateTimer = setTimeout(() => {
+		rateTimer = undefined;
+		const next = latestSettings;
+		if (next === undefined) return;
+		void applyRate(next).catch((err) => debugLog("warn", "shadow rate update failed", { error: String(err) }));
+	}, 40);
 };
 
 export const getShadowPosition = (): number | null => (channels === undefined ? null : currentPosition());
@@ -409,8 +469,10 @@ export const getShadowStatus = (): ShadowStatus => ({
 	engine: "signalsmith",
 	bufferSeconds: channels === undefined ? null : Number(trackDuration.toFixed(2)),
 	playing: sourcePlaying,
+	userPlaying,
 	muted,
 	nativePaused,
+	ending,
 	rate: sourceRate,
 	loadAt,
 	error,
@@ -418,6 +480,9 @@ export const getShadowStatus = (): ShadowStatus => ({
 
 export const startShadowPlayer = (unloads: Set<LunaUnload>, next: ShadowDeps): void => {
 	deps = next;
+	userPlaying = next.isPlaying();
+	hasIntent = false;
+	latestSettings = next.getSettings();
 	const initial = next.getDesiredVolume?.();
 	desiredVolume = initial !== undefined && Number.isFinite(initial) ? Math.max(0, Math.min(1, initial)) : 1;
 	timer = setInterval(tick, TICK_MS);
@@ -425,6 +490,10 @@ export const startShadowPlayer = (unloads: Set<LunaUnload>, next: ShadowDeps): v
 	unloads.add(() => {
 		if (timer !== undefined) clearInterval(timer);
 		timer = undefined;
+		if (rateTimer !== undefined) {
+			clearTimeout(rateTimer);
+			rateTimer = undefined;
+		}
 		stopSource();
 		resumeNativeIfPaused();
 		if (shadowGain !== undefined) {

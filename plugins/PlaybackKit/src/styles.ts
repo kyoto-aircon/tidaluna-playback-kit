@@ -323,10 +323,29 @@ export const SPEED_CSS = `
 	line-height: 1.45;
 	color: var(--lunaspeed-muted);
 }
+.lunaspeed-native-toggle {
+	align-self: flex-start;
+	margin-top: 6px;
+	padding: 4px 10px;
+	border-radius: 999px;
+	border: 1px solid color-mix(in srgb, var(--lunaspeed-accent) 60%, transparent);
+	background: color-mix(in srgb, var(--lunaspeed-accent) 14%, transparent);
+	color: var(--lunaspeed-accent);
+	font-family: inherit;
+	font-size: 0.786rem;
+	font-weight: 600;
+	cursor: pointer;
+}
+.lunaspeed-native-toggle:hover {
+	filter: brightness(1.15);
+}
+.lunaspeed-native-toggle:focus-visible {
+	outline: 2px solid var(--lunaspeed-accent);
+	outline-offset: 2px;
+}
 .lunaspeed-warning-action,
 .lunaspeed-warning-effects,
-.lunaspeed-quality-action {
-	align-self: flex-start;
+.lunaspeed-quality-action {	align-self: flex-start;
 	margin: 4px 0 0;
 	padding: 0;
 	border: 0;

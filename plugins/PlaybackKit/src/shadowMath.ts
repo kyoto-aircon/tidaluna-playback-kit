@@ -21,3 +21,27 @@ export const shadowPosition = (elapsedSeconds: number, rate: number, offset: num
 /** Signalsmith semitones: pitch follows speed, or the user's independent offset. */
 export const stretchSemitones = (semitones: number, speed: number, pitchShifts: boolean): number =>
 	pitchShifts ? 12 * Math.log2(speed) : semitones;
+
+export interface TransportState {
+	playing: boolean;
+	hasIntent: boolean;
+	lastAt: number;
+}
+
+/**
+ * User intent is captured from TIDAL's active player. Redux alone is not a
+ * reliable source: pausing the native renderer for non-1× speeds can make its
+ * state leave PLAYING, which used to stop the shadow. Only a real play/pause
+ * command clears intent.
+ */
+export const resolveTransport = (
+	current: TransportState,
+	transport: { value: "playing" | "paused"; at: number } | undefined,
+	reduxPlaying: boolean,
+): TransportState => {
+	if (transport !== undefined && transport.at !== current.lastAt) {
+		return { playing: transport.value === "playing", hasIntent: true, lastAt: transport.at };
+	}
+	if (!current.hasIntent && reduxPlaying) return { ...current, playing: true };
+	return current;
+};
