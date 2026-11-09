@@ -20,10 +20,13 @@ current audio chain — all following TIDAL's theme, fonts and type scale.
 2. Add this store URL:
 
    ```
-   https://github.com/kyoto-aircon/tidaluna-playback-kit/releases/download/latest/store.json
+   https://raw.githubusercontent.com/kyoto-aircon/tidaluna-playback-kit/release/store.json
    ```
 
 3. Install **Playback Kit** and enable it.
+
+> The store is served from the `release` branch on raw.githubusercontent.com because GitHub’s
+> `releases/download/latest` endpoint intermittently returns 504, which makes Luna load nothing.
 
 ## What you get
 

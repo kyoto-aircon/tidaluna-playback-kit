@@ -73,3 +73,8 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 
 - Series stage between bass and delay: `eightDInput -> delay (15 ms base) -> StereoPanner -> eightDOut`. A sine LFO (rate/Hz) drives `panDepth` into `panner.pan`; a second sine LFO drives `pitchDepth/1000` seconds into the delay time (vibrato). Both oscillators start once and depths go to 0 when disabled.
 - `eightD.rate`/`pitchRate` 0.02–2 Hz, `panDepth` 0–1, `pitchDepth` 0–12 ms.
+
+## Release layout
+
+- `npm run release` uploads dist/* to the mutable `latest` release **and** mirrors the same files to the `release` branch via the Git Data API.
+- The public store URL is `https://raw.githubusercontent.com/kyoto-aircon/tidaluna-playback-kit/release/store.json` (raw has CORS `*`). GitHub’s `releases/download/latest` path has returned 504 across repos, so do not use it as the primary store URL.
