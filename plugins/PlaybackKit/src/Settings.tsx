@@ -182,7 +182,7 @@ export const Settings = () => {
 				<LunaSettings title="Presets" desc="Capture speed, pitch and effects. Built-ins are fixed; custom presets can be applied, renamed, updated, reordered and deleted.">
 					<LunaSwitchSetting
 						title="Built-in presets"
-						desc="Show Nightcore, Slowcore, Big Bass, 8D Orbit and Dub Echo."
+						desc="Show the built-in presets."
 						checked={builtinPresets}
 						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
 							const enabled = e.target.checked;
