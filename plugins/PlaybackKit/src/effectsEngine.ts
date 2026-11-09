@@ -17,6 +17,14 @@ interface Graph {
 	delayNode: DelayNode;
 	delayWet: GainNode;
 	delayFeedback: GainNode;
+	bassDry: GainNode;
+	bassLowpass: BiquadFilterNode;
+	bassSub: BiquadFilterNode;
+	bassBoost: BiquadFilterNode;
+	bassDrive: GainNode;
+	bassShaper: WaveShaperNode;
+	bassWet: GainNode;
+	limiter: DynamicsCompressorNode;
 	reverbIn: GainNode;
 	reverbDry: GainNode;
 	convolver: ConvolverNode;
@@ -67,6 +75,34 @@ const build = async (): Promise<Graph> => {
 	const delayWet = ctx.createGain();
 	const delayFeedback = ctx.createGain();
 
+	const bassDry = ctx.createGain();
+	const bassLowpass = ctx.createBiquadFilter();
+	bassLowpass.type = "lowpass";
+	bassLowpass.frequency.value = 220;
+	bassLowpass.Q.value = 0.7;
+	const bassSub = ctx.createBiquadFilter();
+	bassSub.type = "lowshelf";
+	bassSub.frequency.value = 45;
+	const bassBoost = ctx.createBiquadFilter();
+	bassBoost.type = "lowshelf";
+	bassBoost.frequency.value = 90;
+	const bassDrive = ctx.createGain();
+	const bassShaper = ctx.createWaveShaper();
+	const curve = new Float32Array(2048);
+	for (let index = 0; index < curve.length; index += 1) {
+		const x = (index / (curve.length - 1)) * 2 - 1;
+		curve[index] = Math.tanh(3 * x) / Math.tanh(3);
+	}
+	bassShaper.curve = curve;
+	bassShaper.oversample = "4x";
+	const bassWet = ctx.createGain();
+	const limiter = ctx.createDynamicsCompressor();
+	limiter.threshold.value = -3;
+	limiter.knee.value = 0;
+	limiter.ratio.value = 20;
+	limiter.attack.value = 0.003;
+	limiter.release.value = 0.25;
+
 	const reverbIn = ctx.createGain();
 	const reverbDry = ctx.createGain();
 	const convolver = ctx.createConvolver();
@@ -77,19 +113,29 @@ const build = async (): Promise<Graph> => {
 	for (let index = 1; index < eqFilters.length; index += 1) eqFilters[index - 1].connect(eqFilters[index]);
 	const eqTail = eqFilters[eqFilters.length - 1];
 
-	eqTail.connect(delayDry);
+	eqTail.connect(bassDry);
+	bassDry.connect(delayDry);
+	bassDry.connect(delayNode);
+	eqTail.connect(bassLowpass);
+	bassLowpass.connect(bassSub);
+	bassSub.connect(bassBoost);
+	bassBoost.connect(bassDrive);
+	bassDrive.connect(bassShaper);
+	bassShaper.connect(bassWet);
+	bassWet.connect(delayDry);
+	bassWet.connect(delayNode);
 	delayDry.connect(reverbIn);
-	eqTail.connect(delayNode);
 	delayNode.connect(delayWet);
 	delayWet.connect(reverbIn);
 	delayNode.connect(delayFeedback);
 	delayFeedback.connect(delayNode);
 
 	reverbIn.connect(reverbDry);
-	reverbDry.connect(fxOut);
+	reverbDry.connect(limiter);
 	reverbIn.connect(convolver);
 	convolver.connect(reverbWet);
-	reverbWet.connect(fxOut);
+	reverbWet.connect(limiter);
+	limiter.connect(fxOut);
 
 	graph = {
 		fxIn,
@@ -98,6 +144,14 @@ const build = async (): Promise<Graph> => {
 		delayNode,
 		delayWet,
 		delayFeedback,
+		bassDry,
+		bassLowpass,
+		bassSub,
+		bassBoost,
+		bassDrive,
+		bassShaper,
+		bassWet,
+		limiter,
 		reverbIn,
 		reverbDry,
 		convolver,
@@ -120,6 +174,13 @@ const applyParams = (ctx: AudioContext, effects: EffectsSettings): void => {
 		const gain = effects.eq.enabled ? (effects.eq.bands[index] ?? 0) : 0;
 		g.eqFilters[index].gain.setTargetAtTime(gain, now, smooth);
 	}
+
+	const bassWet = effects.bass.enabled ? effects.bass.mix : 0;
+	g.bassDry.gain.setTargetAtTime(1, now, smooth);
+	g.bassWet.gain.setTargetAtTime(bassWet, now, smooth);
+	g.bassSub.gain.setTargetAtTime(effects.bass.enabled ? effects.bass.sub : 0, now, smooth);
+	g.bassBoost.gain.setTargetAtTime(effects.bass.enabled ? effects.bass.boost : 0, now, smooth);
+	g.bassDrive.gain.setTargetAtTime(effects.bass.enabled ? 1 + effects.bass.drive * 3 : 1, now, smooth);
 
 	const delayWet = effects.delay.enabled ? effects.delay.mix : 0;
 	g.delayNode.delayTime.setTargetAtTime(Math.min(2, Math.max(0.02, effects.delay.timeMs / 1000)), now, smooth);
@@ -160,6 +221,7 @@ export const updateEffects = async (effects: EffectsSettings, elements: HTMLMedi
 			context: ctx.state,
 			active: [
 				normalized.eq.enabled ? "eq" : "",
+				normalized.bass.enabled ? "bass" : "",
 				normalized.delay.enabled ? "delay" : "",
 				normalized.reverb.enabled ? "reverb" : "",
 			].filter((name) => name !== ""),

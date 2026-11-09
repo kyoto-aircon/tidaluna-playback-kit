@@ -63,3 +63,8 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 - Effects share the single MediaElementSource with the pitch shifter, so both depend on capture succeeding.
 - EQ is 8 bands at 62/125/250/500/1k/2k/4k/8k Hz (lowshelf, peaking Q1.2, highshelf), stored as `eq.bands: number[8]` in dB; older `low/mid/high` configs are migrated by `normalizeBands`. UI is `EqSliders.tsx` (vertical pointer/keyboard sliders, no MUI dependency).
 - Presets capture `effects` too: `save`/`update` take an `EffectsSettings` snapshot and `applyPreset` restores it. Manual setters keep `presetId`; the UI derives "dirty" with `presetMatches` and shows `*`. The single popover **Save preset** action pre-fills the active name: same name overwrites a custom preset (via `saveActivePreset`), otherwise it creates and activates a new preset; a built-in pre-fills `<name> (edited)`. There is no separate Save copy/changes button. Settings keeps its per-preset Update for custom presets. `reset()` clears the preset; nothing locks controls anymore.
+
+## Bass boost
+
+- Parallel send inside the effects group: `eqTail -> (dry) -> delay` and `eqTail -> lowpass 220 -> sub shelf 45 -> boost shelf 90 -> pre-gain -> tanh shaper (4x oversample) -> wet -> delay`. Wet is added to dry, not a crossfade, so mids/highs are untouched.
+- `bass.boost` 0–24 dB, `bass.sub` 0–12 dB, `bass.drive` 0–1 (pre-gain 1+3·drive), `bass.mix` 0–1. A DynamicsCompressor limiter (-3 dB, 20:1) sits before the chain output for every effect.

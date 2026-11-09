@@ -19,6 +19,18 @@ export interface DelaySettings {
 	mix: number;
 }
 
+export interface BassSettings {
+	enabled: boolean;
+	/** Low-shelf boost at 90 Hz, 0..24 dB. */
+	boost: number;
+	/** Sub shelf at 45 Hz, 0..12 dB. */
+	sub: number;
+	/** Saturation drive, 0..1. */
+	drive: number;
+	/** Wet send amount, 0..1 (added to the dry bass, not a crossfade). */
+	mix: number;
+}
+
 export interface ReverbSettings {
 	enabled: boolean;
 	/** seconds, 0.2..8 */
@@ -29,12 +41,14 @@ export interface ReverbSettings {
 
 export interface EffectsSettings {
 	eq: EqSettings;
+	bass: BassSettings;
 	delay: DelaySettings;
 	reverb: ReverbSettings;
 }
 
 export const DEFAULT_EFFECTS: EffectsSettings = {
 	eq: { enabled: false, bands: Array.from({ length: EQ_BANDS }, () => 0) },
+	bass: { enabled: false, boost: 6, sub: 3, drive: 0.2, mix: 0.6 },
 	delay: { enabled: false, timeMs: 250, feedback: 0.25, mix: 0.25 },
 	reverb: { enabled: false, decay: 2, mix: 0.25 },
 };
@@ -62,12 +76,20 @@ const normalizeBands = (eq: Record<string, unknown>): number[] => {
 export const normalizeEffects = (value: unknown): EffectsSettings => {
 	const record = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
 	const eq = typeof record.eq === "object" && record.eq !== null ? (record.eq as Record<string, unknown>) : {};
+	const bass = typeof record.bass === "object" && record.bass !== null ? (record.bass as Record<string, unknown>) : {};
 	const delay = typeof record.delay === "object" && record.delay !== null ? (record.delay as Record<string, unknown>) : {};
 	const reverb = typeof record.reverb === "object" && record.reverb !== null ? (record.reverb as Record<string, unknown>) : {};
 	return {
 		eq: {
 			enabled: bool(eq.enabled, DEFAULT_EFFECTS.eq.enabled),
 			bands: normalizeBands(eq),
+		},
+		bass: {
+			enabled: bool(bass.enabled, DEFAULT_EFFECTS.bass.enabled),
+			boost: clamp(bass.boost, 0, 24, DEFAULT_EFFECTS.bass.boost),
+			sub: clamp(bass.sub, 0, 12, DEFAULT_EFFECTS.bass.sub),
+			drive: clamp(bass.drive, 0, 1, DEFAULT_EFFECTS.bass.drive),
+			mix: clamp(bass.mix, 0, 1, DEFAULT_EFFECTS.bass.mix),
 		},
 		delay: {
 			enabled: bool(delay.enabled, DEFAULT_EFFECTS.delay.enabled),
@@ -83,11 +105,12 @@ export const normalizeEffects = (value: unknown): EffectsSettings => {
 	};
 };
 
-export const hasAudibleEffects = (effects: EffectsSettings): boolean => effects.eq.enabled || effects.delay.enabled || effects.reverb.enabled;
+export const hasAudibleEffects = (effects: EffectsSettings): boolean => effects.eq.enabled || effects.bass.enabled || effects.delay.enabled || effects.reverb.enabled;
 
 export const describeEffects = (effects: EffectsSettings): string => {
 	const parts: string[] = [];
 	if (effects.eq.enabled) parts.push("EQ 8-band");
+	if (effects.bass.enabled) parts.push(`Bass +${Math.round(effects.bass.boost)} dB`);
 	if (effects.delay.enabled) parts.push(`Delay ${Math.round(effects.delay.timeMs)} ms`);
 	if (effects.reverb.enabled) parts.push(`Reverb ${effects.reverb.decay.toFixed(1)} s`);
 	return parts.length === 0 ? "No effects enabled" : parts.join(" · ");

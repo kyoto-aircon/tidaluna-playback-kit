@@ -24,6 +24,13 @@ describe("effects settings", () => {
 		assert.deepEqual(effects.eq.bands, [6, 6, -3, -3, -3, 2, 2, 2]);
 	});
 
+	it("clamps bass boost ranges", () => {
+		const effects = normalizeEffects({ bass: { enabled: true, boost: 99, sub: -5, drive: 3, mix: 2 } });
+		assert.deepEqual(effects.bass, { enabled: true, boost: 24, sub: 0, drive: 1, mix: 1 });
+		assert.equal(hasAudibleEffects(effects), true);
+		assert.match(describeEffects(effects), /Bass \+24 dB/);
+	});
+
 	it("clamps delay and reverb ranges", () => {
 		const effects = normalizeEffects({
 			delay: { enabled: true, timeMs: 0, feedback: 5, mix: -1 },

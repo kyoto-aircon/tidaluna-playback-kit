@@ -63,6 +63,7 @@ export const Settings = () => {
 	const { bounds, pitchShifts, developerMode, effects } = settings;
 
 	const setEq = (patch: Partial<typeof effects.eq>) => speedStore.setEffects({ ...effects, eq: { ...effects.eq, ...patch } });
+	const setBass = (patch: Partial<typeof effects.bass>) => speedStore.setEffects({ ...effects, bass: { ...effects.bass, ...patch } });
 	const setDelay = (patch: Partial<typeof effects.delay>) => speedStore.setEffects({ ...effects, delay: { ...effects.delay, ...patch } });
 	const setReverb = (patch: Partial<typeof effects.reverb>) => speedStore.setEffects({ ...effects, reverb: { ...effects.reverb, ...patch } });
 
@@ -257,6 +258,52 @@ export const Settings = () => {
 							</LunaButton>
 						</div>
 					</LunaSetting>
+					<LunaSwitchSetting
+						title="Bass boost"
+						desc="Parallel low-shelf sub boost with saturation for dirty kicks. Added on top of the dry signal."
+						checked={effects.bass.enabled}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBass({ enabled: e.target.checked })}
+					/>
+					<LunaTextSetting
+						title="Bass boost (dB)"
+						desc="Low shelf at 90 Hz, 0–24 dB."
+						defaultValue={String(Math.round(effects.bass.boost))}
+						inputProps={{ inputMode: "numeric" }}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+							const value = parseNumber(e.target.value);
+							if (value !== undefined) setBass({ boost: Math.max(0, Math.min(24, value)) });
+						}}
+					/>
+					<LunaTextSetting
+						title="Sub (dB)"
+						desc="Extra shelf at 45 Hz, 0–12 dB."
+						defaultValue={String(Math.round(effects.bass.sub))}
+						inputProps={{ inputMode: "numeric" }}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+							const value = parseNumber(e.target.value);
+							if (value !== undefined) setBass({ sub: Math.max(0, Math.min(12, value)) });
+						}}
+					/>
+					<LunaTextSetting
+						title="Drive (%)"
+						desc="Saturation on the bass path; more harmonics, dirtier kicks."
+						defaultValue={String(Math.round(effects.bass.drive * 100))}
+						inputProps={{ inputMode: "numeric" }}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+							const value = parseNumber(e.target.value);
+							if (value !== undefined) setBass({ drive: Math.max(0, Math.min(100, value)) / 100 });
+						}}
+					/>
+					<LunaTextSetting
+						title="Bass amount (%)"
+						desc="How much of the boosted bass is added back."
+						defaultValue={String(Math.round(effects.bass.mix * 100))}
+						inputProps={{ inputMode: "numeric" }}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+							const value = parseNumber(e.target.value);
+							if (value !== undefined) setBass({ mix: Math.max(0, Math.min(100, value)) / 100 });
+						}}
+					/>
 					<LunaSwitchSetting
 						title="Delay"
 						desc="Feedback delay."
