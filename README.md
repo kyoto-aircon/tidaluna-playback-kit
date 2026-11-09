@@ -43,7 +43,7 @@ current audio chain — all following TIDAL's theme, fonts and type scale.
 | ⭐ **Presets** | Save speed, pitch and effects. Ten built-ins showcase the features — Nightcore, Daycore, Slowcore, Chipmunk, Vaporwave, Big Bass, Submerge, 8D Orbit, Dub Echo, Clear Voice — hide them all with one switch if you only want your own. Editing anything while a preset is active marks it with `*` (unsaved). **Save preset** pre-fills the active name: same name overwrites a custom preset, a built-in pre-fills `<name> (edited)` to save a copy. Choose **Custom** to clear it. |
 | 🎨 **Theme-aware** | Colours, fonts and rem sizes come from TIDAL's own tokens and the app root — TidaLuna themes apply automatically. |
 | 🧭 **Honest scrubber** | At any rate other than 1× the plugin re-feeds the real position so audio and progress bar stay aligned. |
-| 🩺 **Developer mode** | Off by default. Enables logs, Copy diagnostics, an **audio engine self-test** that measures captured RMS, and a **native stream probe** that records the lossless `media.load` host/format and fetches the first 128 KiB (signed URLs are redacted). |
+| 🩺 **Developer mode** | Off by default. Enables logs, Copy diagnostics, an **audio engine self-test** that measures captured RMS, and native stream/bridge blocks (signed URLs redacted). |
 | 🎛️ **Effects on native lossless** | Experimental. Decrypts and decodes the same FLAC the native player is using and plays it through the effects graph; TIDAL stays the clock. One extra download per track, prefetched where possible. Speed stays disabled on native. |
 
 ## How it works
@@ -106,10 +106,14 @@ flowchart TD
 ```
 
 On the native player the popover shows a warning. **Enable effects** turns on the shadow
-player: the plugin downloads the same lossless stream, decrypts it (`OLD_AES`) and decodes it
-into the effects graph, while TIDAL's native player keeps the clock and is muted. It applies
-from the **next track** (or after a TIDAL restart); after that, tracks are prepared as they
-load. **Use browser player** still switches TIDAL to High so speed also works.
+player: the plugin captures the stream descriptor from TIDAL's player, downloads the same
+lossless stream, decrypts it (`OLD_AES`) and decodes it into the effects graph, while TIDAL's
+native player keeps the clock and is muted. It applies to the current track if the player was
+already patched, otherwise from the next track; each following track is prefetched while the
+current one plays. **Use browser player** still switches TIDAL to High so speed also works.
+
+No **electron** grant is needed for this: the stream is captured in the renderer and the
+main-process bridge only uses `fetch`/`crypto`. Only the config file dialogs ask for electron.
 
 ## Presets
 
@@ -181,7 +185,7 @@ last change; edit the file with TIDAL closed or press **Reload** afterwards.
 | Symptom | Likely cause | What to do |
 |---|---|---|
 | Speed, pitch or effects do nothing | TIDAL is on the native lossless player, or effects on native are off | Popover → **Enable effects**, or **Use browser player** (High quality) |
-| Enabled native effects but nothing changed | The bridge only sees loads after it starts | Change track or restart TIDAL once; then it applies to every track |
+| Enabled native effects but nothing changed | The player was not patched before the current load, or no effects/pitch are active | Change track or restart TIDAL once; make sure an effect or pitch offset is on |
 | Native effects are silent or you still hear native audio | Exclusive mode blocks per-app mute, or the stream failed to decrypt/decode | Check the `shadow` and `nativeProbe.track` blocks in diagnostics; turn the setting off to restore native audio |
 | Effects/pitch still silent after switching | Web Audio capture blocked (DRM or element already connected) | Enable **Developer mode** → **Audio engine self-test**; `rms ≈ 0` means capture is blocked |
 | Want to debug native lossless playback | The native player is a separate process; the plugin can only see its `media.load` command | Enable **Developer mode**, play a LOSSLESS track, then **Copy diagnostics**. The `nativeProbe` block shows the stream host/format and whether a 128 KiB range fetch returned `fLaC`. |

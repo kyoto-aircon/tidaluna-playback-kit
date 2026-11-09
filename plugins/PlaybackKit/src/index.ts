@@ -24,8 +24,18 @@ import {
 	snapshotSelectors,
 } from "./debug";
 import { getMediaElements, SpeedController } from "./mediaController";
-import { applyNativeRate, captureNativeComponent, getNativeVolume, hasNativeInstance, probeNativeComponent, setNativeVolume } from "./nativePlayer";
-import { readProbe, startProbe, stopProbe } from "./nativeProbe.native";
+import {
+	applyNativeRate,
+	captureNativeComponent,
+	getNativeStreamState,
+	getNativeVolume,
+	hasNativeInstance,
+	probeNativeComponent,
+	setActivePlayerFinder,
+	setNativeVolume,
+} from "./nativePlayer";
+import { describeStreamInfo } from "./nativeStream";
+import { readBridge } from "./nativeProbe.native";
 import { getPitchEngineState, resetPitchEngine, setPitchSemitones } from "./pitchEngine";
 import { getPlayerKind, setPlayerKind, subscribePlayerKind, type PlayerKind } from "./playerKind";
 import { enforcePresetVisibility, saveActivePreset } from "./presetActions";
@@ -316,6 +326,14 @@ const restoreQuality = (): void => {
 	forgetQuality();
 };
 
+const streamReport = () => {
+	const streams = getNativeStreamState();
+	return {
+		load: streams.load === undefined ? undefined : describeStreamInfo(streams.load),
+		preload: streams.preload === undefined ? undefined : describeStreamInfo(streams.preload),
+	};
+};
+
 const installDebugApi = (controller: SpeedController): void => {
 	const api = {
 		version: PLUGIN_VERSION,
@@ -329,7 +347,9 @@ const installDebugApi = (controller: SpeedController): void => {
 		playerKind: getPlayerKind,
 		audioEngine: getAudioEngineStatus,
 		native: probeNativeComponent,
-		nativeProbe: readProbe,
+		nativeBridge: readBridge,
+		nativeStream: streamReport,
+		nativeVolume: getNativeVolume,
 		shadow: getShadowStatus,
 		store: speedStore,
 		controller,
@@ -342,15 +362,7 @@ const installDebugApi = (controller: SpeedController): void => {
 
 try {
 	setDiagnosticsEnabled(speedStore.get().developerMode);
-	let probeEnabled: boolean | undefined;
-	const syncNativeProbe = (enabled: boolean): void => {
-		if (probeEnabled === enabled) return;
-		probeEnabled = enabled;
-		const task = enabled ? startProbe() : stopProbe();
-		void task.catch((err) => debugLog("warn", "native stream probe failed", { error: String(err) }));
-	};
-	syncNativeProbe(speedStore.get().developerMode || speedStore.get().nativeEffects);
-	registerReportProbe(() => readProbe());
+	registerReportProbe(() => readBridge());
 	registerTidalProbe(probeActivePlayer);
 	try {
 		const legacy = LunaPlugin.getByName("@kyoto-aircon/playback-speed") as { store?: { enabled?: boolean } } | undefined;
@@ -373,8 +385,10 @@ try {
 		uiTime: readUiPosition(),
 		actualTime: getActualPosition(),
 		shadow: getShadowStatus(),
+		nativeStream: streamReport(),
 	}));
 
+	setActivePlayerFinder(() => getActivePlayer() as object | undefined);
 	captureNativeComponent();
 	debugLog("info", "loading", {
 		version: PLUGIN_VERSION,
@@ -395,14 +409,13 @@ try {
 		getNativePosition: getActualPosition,
 		isPlaying,
 		setNativeVolume,
-		getInitialVolume: getNativeVolume,
+		getDesiredVolume: getNativeVolume,
 		getSettings: () => speedStore.get(),
 	});
 	updateShadowPlayer(speedStore.get());
 
 	const unsubscribe = speedStore.subscribe((settings) => {
 		setDiagnosticsEnabled(settings.developerMode);
-		syncNativeProbe(settings.developerMode || settings.nativeEffects);
 		updateShadowPlayer(settings);
 		scheduleConfigSave();
 		debugLog("info", "settings changed", { speed: settings.speed, pitchShifts: settings.pitchShifts, bounds: settings.bounds });
@@ -478,7 +491,6 @@ try {
 		controller.stop();
 		resetPitchEngine();
 		resetEffectsEngine();
-		void stopProbe().catch(() => undefined);
 	});
 
 	trace.log("loaded");

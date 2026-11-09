@@ -1,10 +1,16 @@
 import { debugLog } from "./debug";
+import { extractStreamInfo, type NativeStreamCapture } from "./nativeStream";
 
 /**
  * TIDAL's lossless path plays through `window.NativePlayerComponent`, a native
  * audio backend with no HTMLMediaElement, so `playbackRate` is ignored.
  * We patch its prototype to capture the live instance and, if the backend
  * exposes a rate method, drive it from here.
+ *
+ * The live player object is a class instance (not the preload factory result),
+ * so `load`/`next` are wrapped on its actual prototype to capture the stream
+ * descriptor. That keeps the shadow player in the renderer, with no electron
+ * grant.
  */
 
 interface NativePlayerLike {
@@ -55,8 +61,67 @@ const captureInstance = (native: NativePlayerLike): void => {
 	});
 };
 
+let activePlayerFinder: (() => object | undefined) | undefined;
+
+/** Set by index.ts, which already locates TIDAL's active player. */
+export const setActivePlayerFinder = (finder: () => object | undefined): void => {
+	activePlayerFinder = finder;
+};
+
+interface NativeStreamState {
+	load?: NativeStreamCapture;
+	preload?: NativeStreamCapture;
+}
+
+const STREAM_KEY = "__playbackKitNativeStreams";
+const streamState: NativeStreamState = ((globalThis as Record<string, unknown>)[STREAM_KEY] ??= {}) as NativeStreamState;
+
+export const getNativeStreamState = (): NativeStreamState => ({
+	load: streamState.load === undefined ? undefined : { ...streamState.load },
+	preload: streamState.preload === undefined ? undefined : { ...streamState.preload },
+});
+
+const patchStreamPrototype = (player: object): void => {
+	const prototype = Object.getPrototypeOf(player) as Record<string, unknown> | null;
+	if (prototype === null || prototype === Object.prototype) return;
+	if (prototype.__pbkStreamPatched === true) return;
+	const wrap = (method: "load" | "next", slot: "load" | "preload"): void => {
+		const original = prototype[method];
+		if (typeof original !== "function") return;
+		prototype[method] = function patchedStream(this: unknown, ...args: unknown[]): unknown {
+			try {
+				const info = extractStreamInfo(args[0]);
+				if (info !== null) streamState[slot] = info;
+			} catch (err) {
+				debugLog("debug", "native stream capture failed", { error: String(err) });
+			}
+			return (original as (...inner: unknown[]) => unknown).apply(this, args);
+		};
+	};
+	try {
+		Object.defineProperty(prototype, "__pbkStreamPatched", { value: true, enumerable: false });
+	} catch {
+		return;
+	}
+	wrap("load", "load");
+	wrap("next", "preload");
+	debugLog("info", "native stream capture patched", { methods: ["load", "next"] });
+};
+
+/** Applies the stream capture to the current active player. Idempotent. */
+export const captureNativeStreams = (): void => {
+	if (activePlayerFinder === undefined) return;
+	try {
+		const player = activePlayerFinder();
+		if (player !== undefined) patchStreamPrototype(player);
+	} catch (err) {
+		debugLog("debug", "native stream patch failed", { error: String(err) });
+	}
+};
+
 /** Patch the component before TIDAL builds its player, so we can see the instance. */
 export const captureNativeComponent = (): boolean => {
+	captureNativeStreams();
 	const container = getContainer();
 	if (container === undefined) return false;
 	const prototype = container.Player?.prototype;

@@ -3,8 +3,9 @@ import type { LunaUnload } from "@luna/core";
 import { connectSource, disconnectSource, ensureContext } from "./audioEngine";
 import { debugLog } from "./debug";
 import { hasAudibleEffects } from "./effectsSettings";
+import { getNativeStreamState } from "./nativePlayer";
 import { getPlayerKind } from "./playerKind";
-import { prepareLastLoad, readProbe, readTrack, releaseTrack } from "./nativeProbe.native";
+import { preparePreload, prepareStream, readBridge, readTrack, releaseTrack } from "./nativeProbe.native";
 import type { SpeedSettings } from "./state";
 
 const TICK_MS = 250;
@@ -18,7 +19,7 @@ export interface ShadowDeps {
 	isPlaying: () => boolean;
 	/** 0..1; the shadow player sets 0 while it owns audio and restores this on exit. */
 	setNativeVolume: (volume: number) => void;
-	getInitialVolume?: () => number | undefined;
+	getDesiredVolume?: () => number | undefined;
 	getSettings: () => SpeedSettings;
 }
 
@@ -37,6 +38,7 @@ let busy = false;
 let enabled = false;
 
 let loadAt: number | null = null;
+let lastPreloadAt: number | null = null;
 let phase: ShadowStatus["state"] = "idle";
 let preparingId: number | null = null;
 let buffer: AudioBuffer | null = null;
@@ -75,6 +77,8 @@ const setMuted = (next: boolean): void => {
 		deps.setNativeVolume(0);
 		muted = true;
 	} else if (!next && muted) {
+		const latest = deps.getDesiredVolume?.();
+		if (latest !== undefined && latest > 0) desiredVolume = latest;
 		deps.setNativeVolume(desiredVolume);
 		muted = false;
 	}
@@ -163,6 +167,7 @@ const runTick = async (): Promise<void> => {
 			setMuted(false);
 		}
 		loadAt = null;
+		lastPreloadAt = null;
 		failedLoadAt = null;
 		return;
 	}
@@ -170,29 +175,32 @@ const runTick = async (): Promise<void> => {
 	const now = Date.now();
 	if (now - lastPollAt >= POLL_MS) {
 		lastPollAt = now;
-		const probe = await readProbe();
-		if (typeof probe.volume === "number" && probe.volume > 0) desiredVolume = probe.volume;
-		const load = probe.load;
-		if (load === undefined) return;
-		if (loadAt !== load.at) {
-			loadAt = load.at;
+		const streams = getNativeStreamState();
+		if (streams.preload !== undefined && streams.preload.at !== lastPreloadAt) {
+			lastPreloadAt = streams.preload.at;
+			void preparePreload(streams.preload.url, streams.preload.format, streams.preload.key);
+		}
+		if (streams.load !== undefined && streams.load.at !== loadAt) {
+			loadAt = streams.load.at;
 			failedLoadAt = null;
 			error = undefined;
 			buffer = null;
 			phase = "preparing";
 			stopSource();
-			const started = await prepareLastLoad();
+			const started = await prepareStream(streams.load.url, streams.load.format, streams.load.key);
 			preparingId = started?.id ?? null;
 			return;
 		}
 		if (phase === "preparing") {
-			if (probe.track !== undefined && probe.track.state === "error") {
-				fail(probe.track.error ?? "native stream could not be prepared");
+			const bridge = await readBridge();
+			const track = bridge.load;
+			if (track !== undefined && track.state === "error") {
+				fail(track.error ?? "native stream could not be prepared");
 				return;
 			}
-			if (probe.track !== undefined && probe.track.state === "ready" && probe.track.id === preparingId) {
+			if (track !== undefined && track.state === "ready" && track.id === preparingId) {
 				try {
-					await decodeTrack(probe.track.id, probe.track.bytes);
+					await decodeTrack(track.id, track.bytes);
 				} catch (err) {
 					fail(err);
 					return;
@@ -261,7 +269,7 @@ export const getShadowStatus = (): ShadowStatus => ({
 
 export const startShadowPlayer = (unloads: Set<LunaUnload>, next: ShadowDeps): void => {
 	deps = next;
-	desiredVolume = next.getInitialVolume?.() ?? 1;
+	desiredVolume = next.getDesiredVolume?.() ?? 1;
 	timer = setInterval(tick, TICK_MS);
 	tick();
 	unloads.add(() => {
