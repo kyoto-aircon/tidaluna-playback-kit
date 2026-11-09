@@ -44,7 +44,7 @@ current audio chain — all following TIDAL's theme, fonts and type scale.
 | 🎨 **Theme-aware** | Colours, fonts and rem sizes come from TIDAL's own tokens and the app root — TidaLuna themes apply automatically. |
 | 🧭 **Honest scrubber** | At any rate other than 1× the plugin re-feeds the real position so audio and progress bar stay aligned. |
 | 🩺 **Developer mode** | Off by default. Enables logs, Copy diagnostics, an **audio engine self-test** that measures captured RMS, and native stream/bridge blocks (signed URLs redacted). |
-| 🎛️ **Effects on native lossless** | Experimental. Decrypts and decodes the same FLAC the native player is using and plays it through the effects graph; TIDAL stays the clock. One extra download per track, prefetched where possible. Speed stays disabled on native. |
+| 🎛️ **Native processing** | Experimental. Speed, pitch and effects run on the same FLAC the native player uses; TIDAL keeps the queue/clock and the native renderer is paused at speeds other than 1×. One extra download per track, prefetched where possible. |
 
 ## How it works
 
@@ -105,12 +105,13 @@ flowchart TD
     class NATIVE,NOOP bad
 ```
 
-On the native player the popover shows a warning. **Enable effects** turns on the shadow
-player: the plugin captures the stream descriptor from TIDAL's player, downloads the same
-lossless stream, decrypts it (`OLD_AES`) and decodes it into the effects graph, while TIDAL's
-native player keeps the clock and is muted. It applies to the current track if the player was
-already patched, otherwise from the next track; each following track is prefetched while the
-current one plays. **Use browser player** still switches TIDAL to High so speed also works.
+On the native player the popover shows a warning. **Enable in Playback Kit** turns on the
+shadow player: the plugin captures the stream descriptor from TIDAL's player, downloads the
+same lossless stream, decrypts it (`OLD_AES`) and decodes it into the pitch/effects graph.
+At 1× the native renderer is muted and stays the clock; at other speeds it is paused, the
+buffer becomes the clock, and the native renderer is resumed near the end so TIDAL emits
+`completed` and advances the queue. Each following track is prefetched while the current one
+plays. **Use browser player** still switches TIDAL to High.
 
 No **electron** grant is needed for this: the stream is captured in the renderer and the
 main-process bridge only uses `fetch`/`crypto`. Only the config file dialogs ask for electron.
@@ -184,9 +185,10 @@ last change; edit the file with TIDAL closed or press **Reload** afterwards.
 
 | Symptom | Likely cause | What to do |
 |---|---|---|
-| Speed, pitch or effects do nothing | TIDAL is on the native lossless player, or effects on native are off | Popover → **Enable effects**, or **Use browser player** (High quality) |
+| Speed/pitch/effects ignored on native | TIDAL is on the native lossless player and native processing is off | Popover → **Enable in Playback Kit**, or **Use browser player** (High quality) |
 | Enabled native effects but nothing changed | The player was not patched before the current load, or no effects/pitch are active | Change track or restart TIDAL once; make sure an effect or pitch offset is on |
-| Native effects are silent or you still hear native audio | Exclusive mode blocks per-app mute, or the stream failed to decrypt/decode | Check the `shadow` and `nativeProbe.track` blocks in diagnostics; turn the setting off to restore native audio |
+| Native processing is silent or you still hear native audio | Exclusive mode blocks per-app mute, or the stream failed to decrypt/decode | Check the `shadow` and `nativeProbe.track` blocks in diagnostics; turn the setting off to restore native audio |
+| Speed on native stutters or the queue stalls near the end | The native renderer is paused at non-1× and resumed for `completed`; some devices/paths handle the seek differently | Check `shadow.muted`/`state` in diagnostics; flip to **Use browser player** for speed-critical listening |
 | Effects/pitch still silent after switching | Web Audio capture blocked (DRM or element already connected) | Enable **Developer mode** → **Audio engine self-test**; `rms ≈ 0` means capture is blocked |
 | Want to debug native lossless playback | The native player is a separate process; the plugin can only see its `media.load` command | Enable **Developer mode**, play a LOSSLESS track, then **Copy diagnostics**. The `nativeProbe` block shows the stream host/format and whether a 128 KiB range fetch returned `fLaC`. |
 | Quality badge shows `96 kbps` | Older builds sent the wrong `SET_STREAMING_QUALITY` payload, so the quality never applied | Fixed in 2.14.2; otherwise pick **High** in TIDAL settings |

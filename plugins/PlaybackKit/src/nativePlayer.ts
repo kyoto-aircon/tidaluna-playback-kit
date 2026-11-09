@@ -68,9 +68,10 @@ export const setActivePlayerFinder = (finder: () => object | undefined): void =>
 	activePlayerFinder = finder;
 };
 
-interface NativeStreamState {
+export interface NativeStreamState {
 	load?: NativeStreamCapture;
 	preload?: NativeStreamCapture;
+	seek?: { time: number; at: number };
 }
 
 const STREAM_KEY = "__playbackKitNativeStreams";
@@ -79,6 +80,7 @@ const streamState: NativeStreamState = ((globalThis as Record<string, unknown>)[
 export const getNativeStreamState = (): NativeStreamState => ({
 	load: streamState.load === undefined ? undefined : { ...streamState.load },
 	preload: streamState.preload === undefined ? undefined : { ...streamState.preload },
+	seek: streamState.seek === undefined ? undefined : { ...streamState.seek },
 });
 
 const patchStreamPrototype = (player: object): void => {
@@ -105,7 +107,15 @@ const patchStreamPrototype = (player: object): void => {
 	}
 	wrap("load", "load");
 	wrap("next", "preload");
-	debugLog("info", "native stream capture patched", { methods: ["load", "next"] });
+	const originalSeek = prototype.seek;
+	if (typeof originalSeek === "function") {
+		prototype.seek = function patchedSeek(this: unknown, ...args: unknown[]): unknown {
+			const time = Number(args[0]);
+			if (Number.isFinite(time)) streamState.seek = { time: Math.max(0, time), at: Date.now() };
+			return (originalSeek as (...inner: unknown[]) => unknown).apply(this, args);
+		};
+	}
+	debugLog("info", "native stream capture patched", { methods: ["load", "next", "seek"] });
 };
 
 /** Applies the stream capture to the current active player. Idempotent. */
@@ -153,6 +163,9 @@ export const hasNativeInstance = (): boolean => instance !== undefined;
 interface NativePlayerControl {
 	setVolume?: (volume: number) => void;
 	volume?: number;
+	pause?: () => void;
+	play?: () => void;
+	seek?: (time: number) => void;
 }
 
 let control: NativePlayerControl | undefined;
@@ -194,6 +207,41 @@ export const getNativeVolume = (): number | undefined => {
 	const value = target?.volume;
 	if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
 	return Math.max(0, Math.min(1, value));
+};
+
+/** Stops TIDAL's native renderer while the shadow player owns the clock. */
+export const pauseNative = (): void => {
+	const target = getControl();
+	if (target?.pause === undefined) return;
+	try {
+		target.pause();
+	} catch (err) {
+		debugLog("error", "native pause failed", { error: String(err) });
+	}
+};
+
+/** Seeks the native renderer without changing its play state. */
+export const seekNative = (time: number): void => {
+	const target = getControl();
+	if (target?.seek === undefined) return;
+	try {
+		target.seek(Math.max(0, time));
+	} catch (err) {
+		debugLog("error", "native seek failed", { error: String(err) });
+	}
+};
+
+/** Seeks and plays the native renderer (used to trigger its `completed` signal). */
+export const playNativeAt = (time: number, volume: number): void => {
+	const target = getControl();
+	if (target === undefined) return;
+	try {
+		if (typeof target.setVolume === "function") target.setVolume(Math.round(Math.max(0, Math.min(1, volume)) * 100));
+		if (typeof target.seek === "function") target.seek(Math.max(0, time));
+		if (typeof target.play === "function") target.play();
+	} catch (err) {
+		debugLog("error", "native seek/play failed", { error: String(err) });
+	}
 };
 
 export const applyNativeRate = (rate: number): boolean => {

@@ -259,7 +259,7 @@ export const Settings = () => {
 				<LunaSettings title="Native player" desc="TIDAL's lossless player runs in a separate process. This plays the same stream through the effects chain.">
 					<LunaSwitchSetting
 						title="Effects on native lossless"
-						desc="Experimental. Downloads the track a second time (prefetched where possible) and mutes TIDAL's own playback. Needs the electron trust prompt; speed stays disabled on native."
+						desc="Experimental. Speed, pitch and effects run through the shadow player; TIDAL's native renderer keeps the clock at 1× and is paused for other speeds. Downloads the track a second time (prefetched where possible)."
 						checked={nativeEffects}
 						onChange={(e: React.ChangeEvent<HTMLInputElement>) => speedStore.setNativeEffects(e.target.checked)}
 					/>

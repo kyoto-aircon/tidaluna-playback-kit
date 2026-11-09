@@ -34,42 +34,39 @@ const ensureNode = async (ctx: AudioContext): Promise<AudioWorkletNode> => {
 	return node;
 };
 
-const attachPitch = async (semitones: number, elements: HTMLMediaElement[]): Promise<void> => {
-	const ctx = await ensureContext();
-	if (ctx.state !== "running") {
-		state = { status: "waiting", reason: "audio context suspended (interact with the page)", semitones, context: ctx.state, attached: state.attached };
-		return;
-	}
-	const element = pickElement(elements);
-	if (element === undefined) {
-		state = { status: "waiting", reason: "no playing media element", semitones, context: ctx.state, attached: state.attached };
-		return;
-	}
-	await attach(element);
-	const worklet = await ensureNode(ctx);
-	const ratio = worklet.parameters.get("ratio");
-	if (ratio !== undefined) ratio.value = semitoneRatio(semitones);
-	state = { status: "running", semitones, context: ctx.state, attached: getStatus().sources };
-};
-
 /** ratio 1 is a transparent passthrough; the graph stays connected once created. */
-export const setPitchSemitones = async (semitones: number, elements: HTMLMediaElement[]): Promise<void> => {
-	if (semitones === 0) {
+export const setPitchRatio = async (ratio: number, semitones: number, elements: HTMLMediaElement[]): Promise<void> => {
+	const target = Math.max(0.25, Math.min(4, Number.isFinite(ratio) ? ratio : 1));
+	if (Math.abs(target - 1) < 0.0002) {
 		if (node !== undefined) {
-			const ratio = node.parameters.get("ratio");
-			if (ratio !== undefined) ratio.value = 1;
+			const param = node.parameters.get("ratio");
+			if (param !== undefined) param.value = 1;
 		}
-		state = { ...state, status: node === undefined ? "idle" : "ready", semitones: 0, reason: undefined };
+		state = { ...state, status: node === undefined ? "idle" : "ready", semitones, reason: undefined };
 		return;
 	}
 	try {
-		await attachPitch(semitones, elements);
+		const ctx = await ensureContext();
+		if (ctx.state !== "running") {
+			state = { status: "waiting", reason: "audio context suspended (interact with the page)", semitones, context: ctx.state, attached: state.attached };
+			return;
+		}
+		const worklet = await ensureNode(ctx);
+		const param = worklet.parameters.get("ratio");
+		if (param !== undefined) param.value = target;
+		// The worklet is in the chain even without a media element (shadow player).
+		const element = pickElement(elements);
+		if (element !== undefined) await attach(element);
+		state = { status: "running", semitones, context: ctx.state, attached: getStatus().sources };
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		state = { status: "unavailable", reason: message, semitones, attached: state.attached };
 		debugLog("error", "pitch engine unavailable", { error: message });
 	}
 };
+
+export const setPitchSemitones = async (semitones: number, elements: HTMLMediaElement[]): Promise<void> =>
+	setPitchRatio(semitoneRatio(semitones), semitones, elements);
 
 /** Leaves the graph connected but transparent. Called when the plugin unloads. */
 export const resetPitchEngine = (): void => {

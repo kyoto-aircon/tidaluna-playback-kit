@@ -30,18 +30,22 @@ import {
 	getNativeStreamState,
 	getNativeVolume,
 	hasNativeInstance,
+	pauseNative,
+	playNativeAt,
 	probeNativeComponent,
+	seekNative,
 	setActivePlayerFinder,
 	setNativeVolume,
 } from "./nativePlayer";
 import { describeStreamInfo } from "./nativeStream";
 import { readBridge } from "./nativeProbe.native";
-import { getPitchEngineState, resetPitchEngine, setPitchSemitones } from "./pitchEngine";
+import { getPitchEngineState, resetPitchEngine, setPitchRatio } from "./pitchEngine";
 import { getPlayerKind, setPlayerKind, subscribePlayerKind, type PlayerKind } from "./playerKind";
 import { enforcePresetVisibility, saveActivePreset } from "./presetActions";
 import { presetStore, type PlaybackPreset, type PresetValues } from "./presets";
-import { getShadowStatus, startShadowPlayer, updateShadowPlayer } from "./shadowPlayer";
-import { speedStore } from "./state";
+import { shadowPitchRatio } from "./shadowMath";
+import { getShadowPosition, getShadowStatus, startShadowPlayer, updateShadowPlayer } from "./shadowPlayer";
+import { speedStore, type SpeedSettings } from "./state";
 import { startTimeSync, syncOnce } from "./timeSync";
 
 export { Settings } from "./Settings";
@@ -156,6 +160,10 @@ const getActivePlayer = (): ActivePlayerLike | undefined => {
 
 /** Media position of whatever is actually playing (native player or media element). */
 const getActualPosition = (): number | null => {
+	if (Math.abs(speedStore.get().speed - 1) > 1e-3) {
+		const shadow = getShadowPosition();
+		if (shadow !== null) return shadow;
+	}
 	if (getPlayerKind() === "native") {
 		const time = getActivePlayer()?.currentTime;
 		return typeof time === "number" && Number.isFinite(time) ? time : null;
@@ -198,6 +206,14 @@ const readUiPosition = (): number | null => {
 };
 
 const timeSyncDeps = { getSpeed: () => speedStore.get().speed, isPlaying, getPosition: getActualPosition, dispatchTimeUpdate };
+
+/**
+ * The shadow source runs at `speed`, so its pitch rises with the rate. Cancel
+ * that with the worklet (1/speed) unless "pitch follows speed" is on, and fold
+ * in the user's semitone offset. Shaka handles pitch preservation itself.
+ */
+const effectivePitchRatio = (settings: SpeedSettings): number =>
+	shadowPitchRatio(settings.pitchSemitones, settings.speed, settings.pitchShifts, getPlayerKind() === "native" && settings.nativeEffects);
 
 const probeQuality = () => {
 	try {
@@ -374,6 +390,7 @@ try {
 		kind: getPlayerKind(),
 		native: probeNativeComponent(),
 		nativeInstance: hasNativeInstance(),
+		nativeVolume: getNativeVolume(),
 		speed: speedStore.get().speed,
 		track: probeCurrentTrack(),
 		audioEngine: getAudioEngineStatus(),
@@ -410,6 +427,9 @@ try {
 		isPlaying,
 		setNativeVolume,
 		getDesiredVolume: getNativeVolume,
+		pauseNative,
+		playNativeAt,
+		seekNative,
 		getSettings: () => speedStore.get(),
 	});
 	updateShadowPlayer(speedStore.get());
@@ -422,7 +442,7 @@ try {
 		controller.apply();
 		if (getPlayerKind() === "native") applyNativeRate(settings.speed);
 		syncOnce(timeSyncDeps);
-		void setPitchSemitones(settings.pitchSemitones, getMediaElements());
+		void setPitchRatio(effectivePitchRatio(settings), settings.pitchSemitones, getMediaElements());
 		void updateEffects(settings.effects, getMediaElements());
 	});
 	presetStore.subscribe(scheduleConfigSave);
@@ -452,8 +472,8 @@ try {
 		openSettings: openLunaSettings,
 		enableNativeEffects: () => speedStore.setNativeEffects(true),
 		onOpen: () => {
-			const semitones = speedStore.get().pitchSemitones;
-			if (semitones !== 0) void setPitchSemitones(semitones, getMediaElements());
+			const current = speedStore.get();
+			void setPitchRatio(effectivePitchRatio(current), current.pitchSemitones, getMediaElements());
 		},
 	});
 	installDebugApi(controller);
@@ -461,10 +481,9 @@ try {
 	// TIDAL swaps media elements between tracks and re-renders the footer.
 	const scanTimer = setInterval(() => {
 		controller.scan();
-		const semitones = speedStore.get().pitchSemitones;
-		if (semitones !== 0) void setPitchSemitones(semitones, getMediaElements());
-		const effects = speedStore.get().effects;
-		if (hasAudibleEffects(effects)) void updateEffects(effects, getMediaElements());
+		const current = speedStore.get();
+		void setPitchRatio(effectivePitchRatio(current), current.pitchSemitones, getMediaElements());
+		if (hasAudibleEffects(current.effects)) void updateEffects(current.effects, getMediaElements());
 	}, SCAN_INTERVAL_MS);
 	const stopTimeSync = startTimeSync(timeSyncDeps);
 	setPlayerKind(detectPlayerKind());

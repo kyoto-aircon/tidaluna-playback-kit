@@ -195,3 +195,17 @@ shadow sources are not MediaElementSources.
 - Prefetch depth: **one** next track; drop it if memory > 250 MB.
 - Speed on native: **out of scope**; speed UI remains disabled on native.
 - Output device: **default sink**; documented limitation.
+
+## Amendment: speed and pitch (2.17.0)
+
+The non-goal above was lifted after the first working build. The shadow source now runs at
+`settings.speed`; `shadowMath.shadowPitchRatio` folds the user semitones with `1/speed`
+compensation unless "pitch follows speed" is on. The pitch worklet can be created without a
+playing media element, so it processes the shadow buffer.
+
+At 1× the native renderer remains the clock (muted). At other speeds it is paused, the buffer
+is the clock, `timeSync` re-feeds `TIME_UPDATE` from `shadowPlayer.getShadowPosition`, and the
+native renderer is seeked to `duration - 0.25` and played at the end so TIDAL emits
+`completed` and advances the queue. Seeks are captured from the wrapped active-player `seek`.
+The shadow output has its own gain node mirroring TIDAL's desired volume; the native session
+is muted while the shadow owns audio.

@@ -282,11 +282,11 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		warning.hidden = kind !== "native";
 		const nativeEffects = store.get().nativeEffects;
 		warningText.textContent = nativeEffects
-			? "Effects and pitch run through Playback Kit. Speed still needs the browser player."
-			: "TIDAL ignores effects, speed and pitch here. Enable effects or use the browser player.";
+			? "Speed, pitch and effects run through Playback Kit. TIDAL's native renderer is paused at other speeds."
+			: "TIDAL ignores effects, speed and pitch here. Enable them in Playback Kit or use the browser player.";
 		warningEffects.hidden = nativeEffects;
 		warningEffects.disabled = false;
-		warningEffects.textContent = "Enable effects";
+		warningEffects.textContent = "Enable in Playback Kit";
 		const previous = options.previousQuality?.() ?? null;
 		const showQuality = kind !== "native" && previous !== null;
 		quality.hidden = !showQuality;
