@@ -39,11 +39,10 @@ import {
 } from "./nativePlayer";
 import { describeStreamInfo } from "./nativeStream";
 import { readBridge } from "./nativeProbe.native";
-import { getPitchEngineState, resetPitchEngine, setPitchRatio } from "./pitchEngine";
+import { getPitchEngineState, resetPitchEngine, setLivePitch, setPitchRatio } from "./pitchEngine";
 import { getPlayerKind, setPlayerKind, subscribePlayerKind, type PlayerKind } from "./playerKind";
 import { enforcePresetVisibility, saveActivePreset } from "./presetActions";
 import { presetStore, type PlaybackPreset, type PresetValues } from "./presets";
-import { shadowPitchRatio } from "./shadowMath";
 import { getShadowPosition, getShadowStatus, startShadowPlayer, updateShadowPlayer } from "./shadowPlayer";
 import { speedStore, type SpeedSettings } from "./state";
 import { startTimeSync, syncOnce } from "./timeSync";
@@ -212,10 +211,16 @@ const timeSyncDeps = { getSpeed: () => speedStore.get().speed, isPlaying, getPos
  * that with the worklet (1/speed) unless "pitch follows speed" is on, and fold
  * in the user's semitone offset. Shaka handles pitch preservation itself.
  */
-const effectivePitchRatio = (settings: SpeedSettings): number =>
-	getPlayerKind() === "native" && settings.nativeEffects
-		? 1
-		: shadowPitchRatio(settings.pitchSemitones, settings.speed, settings.pitchShifts, false);
+const applyPitch = (settings: SpeedSettings): void => {
+	const elements = getMediaElements();
+	if (getPlayerKind() === "native" || settings.pitchShifts || settings.pitchSemitones === 0) {
+		// Native shadow owns pitch; pitch-follows-speed needs no independent shift.
+		void setLivePitch(0, elements).catch(() => undefined);
+		void setPitchRatio(1, settings.pitchSemitones, elements).catch(() => undefined);
+		return;
+	}
+	void setLivePitch(settings.pitchSemitones, elements).catch(() => undefined);
+};
 
 const probeQuality = () => {
 	try {
@@ -465,7 +470,7 @@ try {
 		controller.apply();
 		if (getPlayerKind() === "native") applyNativeRate(settings.speed);
 		syncOnce(timeSyncDeps);
-		void setPitchRatio(effectivePitchRatio(settings), settings.pitchSemitones, getMediaElements());
+		void applyPitch(settings);
 		void updateEffects(settings.effects, getMediaElements());
 	});
 	presetStore.subscribe(scheduleConfigSave);
@@ -495,8 +500,7 @@ try {
 		openSettings: openLunaSettings,
 		setNativeEffects: (enabled) => speedStore.setNativeEffects(enabled),
 		onOpen: () => {
-			const current = speedStore.get();
-			void setPitchRatio(effectivePitchRatio(current), current.pitchSemitones, getMediaElements());
+			applyPitch(speedStore.get());
 		},
 	});
 	installDebugApi(controller);
@@ -505,11 +509,13 @@ try {
 	const scanTimer = setInterval(() => {
 		controller.scan();
 		const current = speedStore.get();
-		void setPitchRatio(effectivePitchRatio(current), current.pitchSemitones, getMediaElements());
+		applyPitch(current);
 		if (hasAudibleEffects(current.effects)) void updateEffects(current.effects, getMediaElements());
 	}, SCAN_INTERVAL_MS);
 	const stopTimeSync = startTimeSync(timeSyncDeps);
 	setPlayerKind(detectPlayerKind());
+	applyPitch(speedStore.get());
+	const unsubscribeKind = subscribePlayerKind(() => applyPitch(speedStore.get()));
 	const playerTimer = setInterval(() => {
 		captureNativeComponent();
 		const next = detectPlayerKind();
@@ -528,6 +534,7 @@ try {
 		clearInterval(scanTimer);
 		clearInterval(playerTimer);
 		stopTimeSync();
+		unsubscribeKind();
 		unsubscribe();
 		controller.stop();
 		resetPitchEngine();

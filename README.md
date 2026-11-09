@@ -34,7 +34,7 @@ current audio chain — all following TIDAL's theme, fonts and type scale.
 |---|---|
 | 🎚️ **Speed** | `−` / `+` steppers and a log slider. Range and snap are configurable (default `0.05×`–`10×`, step `0.05×`). The thumb moves smoothly, the rate snaps to your step. |
 | 🎵 **Pitch follows speed** | Rate-based chipmunk / slow-mo. Off by default, so pitch is preserved like YouTube. |
-| 🎼 **Pitch shifter** | Independent `−12…+12 st` offset. The browser player uses an AudioWorklet granular shifter; native lossless uses Signalsmith Stretch (WASM) so speed and pitch stay independent. Mutually exclusive with *Pitch follows speed*. |
+| 🎼 **Pitch shifter** | Independent `−12…+12 st` offset. The browser player uses Signalsmith Stretch (WASM, live input) for independent pitch; speed stays on the element playbackRate. Native lossless is parked while it is stabilized. Mutually exclusive with *Pitch follows speed*. |
 | 📊 **8-band EQ** | Vertical sliders at 62/125/250/500 Hz and 1/2/4/8 kHz, ±12 dB, with a Flat action. |
 | 🌐 **8D audio** | Stereo chorus (opposite-phase delays on L/R) plus LFO auto-pan and a dry/wet mix, so the mix circles your head. Rate/depth for pan and pitch. |
 | 🥁 **Bass boost** | Parallel 90 Hz shelf up to +24 dB, 45 Hz sub shelf, saturation drive for dirty kicks, and a safety limiter at the end of the chain. |
@@ -111,7 +111,7 @@ on / preparing / ready · rate · Signalsmith / failed, with an **Enable process
 descriptor from TIDAL's player, downloads the same lossless stream, decrypts it (`OLD_AES`) and
 decodes it into the pitch/effects graph. Native speed/pitch use **Signalsmith Stretch** (official
 MIT JS/WASM AudioWorklet), so rate and pitch are independent and high quality; the browser player
-still uses the lighter granular worklet. At 1× the native renderer is muted and stays the clock;
+uses Signalsmith live input for independent pitch; speed stays on the element playbackRate, so the browser path remains stable. At 1× the native renderer is muted and stays the clock;
 at other speeds it is paused, the buffer becomes the clock, and the native renderer is resumed
 near the end so TIDAL emits `completed` and advances the queue. Each following track is prefetched
 while the current one plays. **Use browser player** still switches TIDAL to High.

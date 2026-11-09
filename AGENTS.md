@@ -123,3 +123,9 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 - `decodeTrack` keeps `getChannelData` views instead of copying them, logs the estimated decoded MB, and retries `decodeAudioData` once (HiRes files can hit transient memory pressure; corrupt data fails twice).
 - On a new load the previous worklet buffers are dropped before downloading/decoding the next track; after `addBuffers` the JS channel views are released (`channels = undefined`) because the worklet owns its copy. `trackReady` is the readiness flag (not `channels`).
 - A 96 kHz/24-bit 5-minute track is ~236 MB decoded float32; the worklet copy plus raw FLAC is the peak. `MAX_BUFFER_BYTES` remains the hard guard.
+
+## Browser-pitch Signalsmith (2.19.0)
+
+- Browser/shaka speed stays on `HTMLMediaElement.playbackRate` with `preservesPitch` (stable). Independent pitch is a Signalsmith **live-input** node (`stretch.ts` `ensureLiveStretch`) inserted at chain index 0 by `pitchEngine.setLivePitch`; semitones only, rate ignored for live input.
+- `setLivePitch(0)` removes the live node from the chain. On native, index's `applyPitch` keeps it removed; the shadow buffer node owns pitch. On failure, `setLivePitch` falls back to the granular worklet.
+- The live node uses `blockMs: 80`; the buffer node uses 120 ms. Both are lazy-loaded from the same WASM module.

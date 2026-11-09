@@ -1,7 +1,10 @@
-import { attach, ensureContext, getStatus, insert, loadWorklet } from "./audioEngine";
+import type { StretchNode } from "signalsmith-stretch";
+
+import { attach, ensureContext, getStatus, insert, loadWorklet, remove } from "./audioEngine";
 import { debugLog } from "./debug";
 import { semitoneRatio } from "./pitch";
 import { PITCH_WORKLET_SOURCE } from "./pitchWorklet";
+import { ensureLiveStretch, resetLiveStretch } from "./stretch";
 
 export type PitchEngineStatus = "idle" | "waiting" | "running" | "ready" | "unavailable";
 
@@ -16,6 +19,8 @@ export interface PitchEngineState {
 const PROCESSOR_NAME = "playback-kit-pitch";
 
 let node: AudioWorkletNode | undefined;
+let liveNode: StretchNode | undefined;
+let liveInserted = false;
 
 let state: PitchEngineState = { status: "idle", semitones: 0, attached: 0 };
 
@@ -68,8 +73,59 @@ export const setPitchRatio = async (ratio: number, semitones: number, elements: 
 export const setPitchSemitones = async (semitones: number, elements: HTMLMediaElement[]): Promise<void> =>
 	setPitchRatio(semitoneRatio(semitones), semitones, elements);
 
+/**
+ * Browser/shaka independent pitch. Speed stays on the element's playbackRate
+ * (preservesPitch), so only semitones are processed here. Falls back to the
+ * granular worklet if the WASM node cannot start.
+ */
+export const setLivePitch = async (semitones: number, elements: HTMLMediaElement[]): Promise<void> => {
+	try {
+		const ctx = await ensureContext();
+		if (ctx.state !== "running") {
+			state = { status: "waiting", reason: "audio context suspended (interact with the page)", semitones, context: ctx.state, attached: state.attached };
+			return;
+		}
+		if (semitones === 0) {
+			if (liveNode !== undefined && liveInserted) {
+				await remove(liveNode);
+				liveInserted = false;
+			}
+			if (node !== undefined) {
+				const param = node.parameters.get("ratio");
+				if (param !== undefined) param.value = 1;
+			}
+			state = { status: node === undefined && liveNode === undefined ? "idle" : "ready", semitones: 0, context: ctx.state, attached: getStatus().sources };
+			return;
+		}
+		const live = await ensureLiveStretch(ctx);
+		if (!liveInserted) {
+			await insert(live, 0);
+			liveInserted = true;
+		}
+		await live.schedule({ output: ctx.currentTime + 0.05, active: true, semitones });
+		if (node !== undefined) {
+			const param = node.parameters.get("ratio");
+			if (param !== undefined) param.value = 1;
+		}
+		const element = pickElement(elements);
+		if (element !== undefined) await attach(element);
+		liveNode = live;
+		state = { status: "running", semitones, context: ctx.state, attached: getStatus().sources };
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		debugLog("warn", "signalsmith live pitch failed; using granular", { error: message });
+		await setPitchRatio(semitoneRatio(semitones), semitones, elements);
+	}
+};
+
 /** Leaves the graph connected but transparent. Called when the plugin unloads. */
 export const resetPitchEngine = (): void => {
+	if (liveNode !== undefined && liveInserted) {
+		void remove(liveNode).catch(() => undefined);
+		liveInserted = false;
+	}
+	liveNode = undefined;
+	resetLiveStretch();
 	if (node !== undefined) {
 		const ratio = node.parameters.get("ratio");
 		if (ratio !== undefined) ratio.value = 1;
