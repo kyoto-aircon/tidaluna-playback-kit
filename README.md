@@ -175,7 +175,7 @@ last change; edit the file with TIDAL closed or press **Reload** afterwards.
 |---|---|---|
 | Speed, pitch or effects do nothing | TIDAL is on the native lossless player | Popover → **Use browser player** (High quality) |
 | Effects/pitch still silent after switching | Web Audio capture blocked (DRM or element already connected) | Enable **Developer mode** → **Audio engine self-test**; `rms ≈ 0` means capture is blocked |
-| Quality badge shows `96 kbps` / no quality selected | Known quirk of switching via `settings/SET_STREAMING_QUALITY` | Cosmetic; **Restore …** or pick quality in TIDAL settings |
+| Quality badge shows `96 kbps` | Older builds sent the wrong `SET_STREAMING_QUALITY` payload, so the quality never applied | Fixed in 2.14.2; otherwise pick **High** in TIDAL settings |
 | Progress bar drifts from audio | Shouldn't happen — the plugin re-feeds the position at non-1× | If it does, enable Developer mode and send diagnostics |
 | Pitch sounds artefacty | Granular shifter at large offsets | Use smaller offsets; a smooth algorithm is on the roadmap |
 | Logs/buttons missing | Developer mode is off | Luna settings → Playback Kit → Developer |

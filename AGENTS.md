@@ -89,3 +89,7 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 - AudioContext, `MediaElementSource`s and registered worklet names are persisted on `globalThis` (`__playbackKitAudioState`, `__playbackKitWorklets`) so a live reload reuses them; `ensureChain` disconnects old sources and reconnects them to the new chain, orphaning stale effect graphs.
 - This was added because a live reload used to leave the previous effects graph connected: store reset worked but audio kept the old reverb. After installing the version that introduced persistence, restart TIDAL once to clear pre-persistence graphs.
 - `updateEffects` now applies zeroed params even if the context is suspended (only *enabling* needs `running`), and `resetEffectsEngine` zeroes the graph on unload.
+
+## Streaming quality
+
+- TIDAL’s `settings/SET_STREAMING_QUALITY` action payload is an object `{ to: quality }`; the reducer does `payload.to` and the side-effect updates the session. Sending a bare string leaves `quality.streaming` undefined and playback falls back to **96 kbps**. `setStreamingQuality` must keep the `{ to }` shape for HIGH/restore.

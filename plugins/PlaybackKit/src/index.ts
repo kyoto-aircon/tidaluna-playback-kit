@@ -65,9 +65,12 @@ const forgetQuality = (): void => {
 };
 
 const setStreamingQuality = (quality: string): void => {
+	// TIDAL reads action.payload.to; a bare string leaves quality.streaming undefined
+	// and falls back to 96 kbps. This shape is what the reducer and side effects expect.
+	const payload = { to: quality };
 	const setQuality = (redux.actions as unknown as Record<string, (payload: unknown) => unknown>)["settings/SET_STREAMING_QUALITY"];
-	if (typeof setQuality === "function") setQuality(quality);
-	else (redux.store.dispatch as (action: unknown) => unknown)({ type: "settings/SET_STREAMING_QUALITY", payload: quality });
+	if (typeof setQuality === "function") setQuality(payload);
+	else (redux.store.dispatch as (action: unknown) => unknown)({ type: "settings/SET_STREAMING_QUALITY", payload });
 };
 
 const probeActivePlayer = (): unknown => {
@@ -182,6 +185,30 @@ const readUiPosition = (): number | null => {
 };
 
 const timeSyncDeps = { getSpeed: () => speedStore.get().speed, isPlaying, getPosition: getActualPosition, dispatchTimeUpdate };
+
+const probeQuality = () => {
+	try {
+		const state = redux.store.getState() as {
+			settings?: { quality?: { streaming?: string } };
+			playbackControls?: { playbackContext?: { actualAudioQuality?: string; actualStreamType?: string; codec?: string; sampleRate?: number | null; bitDepth?: number | null } };
+			playQueue?: { elements?: Array<{ mediaItemId?: string | number }>; currentIndex?: number };
+			content?: { mediaItems?: Record<string, { audioQuality?: string }> };
+		};
+		const id = state.playQueue?.elements?.[state.playQueue.currentIndex ?? -1]?.mediaItemId;
+		const track = id === undefined ? undefined : state.content?.mediaItems?.[String(id)];
+		return {
+			setting: state.settings?.quality?.streaming ?? null,
+			track: track?.audioQuality ?? null,
+			actual: state.playbackControls?.playbackContext?.actualAudioQuality ?? null,
+			streamType: state.playbackControls?.playbackContext?.actualStreamType ?? null,
+			codec: state.playbackControls?.playbackContext?.codec ?? null,
+			sampleRate: state.playbackControls?.playbackContext?.sampleRate ?? null,
+			bitDepth: state.playbackControls?.playbackContext?.bitDepth ?? null,
+		};
+	} catch (err) {
+		return { error: String(err) };
+	}
+};
 
 const probeCurrentTrack = () => {
 	try {
@@ -324,6 +351,7 @@ try {
 		speed: speedStore.get().speed,
 		track: probeCurrentTrack(),
 		audioEngine: getAudioEngineStatus(),
+		quality: probeQuality(),
 		effects: getEffectsEngineState(),
 		pitchSemitones: speedStore.get().pitchSemitones,
 		pitchEngine: getPitchEngineState(),
