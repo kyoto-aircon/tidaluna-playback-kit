@@ -102,6 +102,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 			<span class="lunaspeed-value">1</span><span class="lunaspeed-unit">×</span>
 		</div>
 		<div class="lunaspeed-presets" role="group" aria-label="Presets"></div>
+		<button class="lunaspeed-save-toggle" type="button">Save preset</button>
 		<form class="lunaspeed-save" hidden>
 			<input class="lunaspeed-save-input" type="text" maxlength="24" placeholder="Preset name" aria-label="Preset name" />
 			<button class="lunaspeed-save-ok" type="submit">Save</button>
@@ -145,6 +146,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 
 	const readout = popover.querySelector<HTMLElement>(".lunaspeed-value") as HTMLElement;
 	const presetRow = popover.querySelector<HTMLElement>(".lunaspeed-presets") as HTMLElement;
+	const saveToggle = popover.querySelector<HTMLButtonElement>(".lunaspeed-save-toggle") as HTMLButtonElement;
 	const saveForm = popover.querySelector<HTMLFormElement>(".lunaspeed-save") as HTMLFormElement;
 	const saveInput = popover.querySelector<HTMLInputElement>(".lunaspeed-save-input") as HTMLInputElement;
 	const saveCancel = popover.querySelector<HTMLButtonElement>(".lunaspeed-save-cancel") as HTMLButtonElement;
@@ -240,20 +242,6 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 			chip.addEventListener("click", () => presets.apply(preset));
 			chips.push(chip);
 		}
-
-		const save = document.createElement("button");
-		save.type = "button";
-		save.className = "lunaspeed-save-toggle";
-		save.textContent = "Save preset";
-		save.addEventListener("click", () => {
-			saveForm.hidden = !saveForm.hidden;
-			if (saveForm.hidden) return;
-			const active = list.find((preset) => preset.id === store.get().presetId);
-			saveInput.value = active === undefined ? "" : active.builtin === true ? `${active.name} (edited)` : active.name;
-			saveInput.focus();
-			saveInput.select();
-		});
-		chips.push(save);
 
 		presetRow.replaceChildren(...chips);
 	};
@@ -404,6 +392,15 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		const root = document.getElementById("wimp") ?? document.body;
 		if (popover.parentElement !== root) root.appendChild(popover);
 	};
+
+	saveToggle.addEventListener("click", () => {
+		saveForm.hidden = !saveForm.hidden;
+		if (saveForm.hidden) return;
+		const active = options.presets?.list().find((preset) => preset.id === store.get().presetId);
+		saveInput.value = active === undefined ? "" : active.builtin === true ? `${active.name} (edited)` : active.name;
+		saveInput.focus();
+		saveInput.select();
+	});
 
 	slower.addEventListener("click", () => store.step(-1));
 	faster.addEventListener("click", () => store.step(1));
