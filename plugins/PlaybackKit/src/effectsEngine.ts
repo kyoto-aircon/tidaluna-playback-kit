@@ -24,6 +24,14 @@ interface Graph {
 	bassDrive: GainNode;
 	bassShaper: WaveShaperNode;
 	bassWet: GainNode;
+	eightDInput: GainNode;
+	eightDDelay: DelayNode;
+	eightDPanner: StereoPannerNode;
+	eightDOut: GainNode;
+	panLfo: OscillatorNode;
+	panDepth: GainNode;
+	pitchLfo: OscillatorNode;
+	pitchDepth: GainNode;
 	limiter: DynamicsCompressorNode;
 	reverbIn: GainNode;
 	reverbDry: GainNode;
@@ -103,6 +111,31 @@ const build = async (): Promise<Graph> => {
 	limiter.attack.value = 0.003;
 	limiter.release.value = 0.25;
 
+	const eightDInput = ctx.createGain();
+	const eightDDelay = ctx.createDelay(0.05);
+	eightDDelay.delayTime.value = 0.015;
+	const eightDPanner = ctx.createStereoPanner();
+	const eightDOut = ctx.createGain();
+	const panLfo = ctx.createOscillator();
+	panLfo.type = "sine";
+	panLfo.frequency.value = 0.12;
+	const panDepth = ctx.createGain();
+	panDepth.gain.value = 0;
+	const pitchLfo = ctx.createOscillator();
+	pitchLfo.type = "sine";
+	pitchLfo.frequency.value = 0.3;
+	const pitchDepth = ctx.createGain();
+	pitchDepth.gain.value = 0;
+	panLfo.connect(panDepth);
+	panDepth.connect(eightDPanner.pan);
+	pitchLfo.connect(pitchDepth);
+	pitchDepth.connect(eightDDelay.delayTime);
+	panLfo.start();
+	pitchLfo.start();
+	eightDInput.connect(eightDDelay);
+	eightDDelay.connect(eightDPanner);
+	eightDPanner.connect(eightDOut);
+
 	const reverbIn = ctx.createGain();
 	const reverbDry = ctx.createGain();
 	const convolver = ctx.createConvolver();
@@ -114,16 +147,16 @@ const build = async (): Promise<Graph> => {
 	const eqTail = eqFilters[eqFilters.length - 1];
 
 	eqTail.connect(bassDry);
-	bassDry.connect(delayDry);
-	bassDry.connect(delayNode);
+	bassDry.connect(eightDInput);
 	eqTail.connect(bassLowpass);
 	bassLowpass.connect(bassSub);
 	bassSub.connect(bassBoost);
 	bassBoost.connect(bassDrive);
 	bassDrive.connect(bassShaper);
 	bassShaper.connect(bassWet);
-	bassWet.connect(delayDry);
-	bassWet.connect(delayNode);
+	bassWet.connect(eightDInput);
+	eightDOut.connect(delayDry);
+	eightDOut.connect(delayNode);
 	delayDry.connect(reverbIn);
 	delayNode.connect(delayWet);
 	delayWet.connect(reverbIn);
@@ -151,6 +184,14 @@ const build = async (): Promise<Graph> => {
 		bassDrive,
 		bassShaper,
 		bassWet,
+		eightDInput,
+		eightDDelay,
+		eightDPanner,
+		eightDOut,
+		panLfo,
+		panDepth,
+		pitchLfo,
+		pitchDepth,
 		limiter,
 		reverbIn,
 		reverbDry,
@@ -181,6 +222,11 @@ const applyParams = (ctx: AudioContext, effects: EffectsSettings): void => {
 	g.bassSub.gain.setTargetAtTime(effects.bass.enabled ? effects.bass.sub : 0, now, smooth);
 	g.bassBoost.gain.setTargetAtTime(effects.bass.enabled ? effects.bass.boost : 0, now, smooth);
 	g.bassDrive.gain.setTargetAtTime(effects.bass.enabled ? 1 + effects.bass.drive * 3 : 1, now, smooth);
+
+	g.panLfo.frequency.setTargetAtTime(effects.eightD.rate, now, smooth);
+	g.panDepth.gain.setTargetAtTime(effects.eightD.enabled ? effects.eightD.panDepth : 0, now, smooth);
+	g.pitchLfo.frequency.setTargetAtTime(effects.eightD.pitchRate, now, smooth);
+	g.pitchDepth.gain.setTargetAtTime(effects.eightD.enabled ? effects.eightD.pitchDepth / 1000 : 0, now, smooth);
 
 	const delayWet = effects.delay.enabled ? effects.delay.mix : 0;
 	g.delayNode.delayTime.setTargetAtTime(Math.min(2, Math.max(0.02, effects.delay.timeMs / 1000)), now, smooth);
@@ -222,6 +268,7 @@ export const updateEffects = async (effects: EffectsSettings, elements: HTMLMedi
 			active: [
 				normalized.eq.enabled ? "eq" : "",
 				normalized.bass.enabled ? "bass" : "",
+				normalized.eightD.enabled ? "8d" : "",
 				normalized.delay.enabled ? "delay" : "",
 				normalized.reverb.enabled ? "reverb" : "",
 			].filter((name) => name !== ""),

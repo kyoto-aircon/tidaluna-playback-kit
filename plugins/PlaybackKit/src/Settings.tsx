@@ -64,6 +64,7 @@ export const Settings = () => {
 
 	const setEq = (patch: Partial<typeof effects.eq>) => speedStore.setEffects({ ...effects, eq: { ...effects.eq, ...patch } });
 	const setBass = (patch: Partial<typeof effects.bass>) => speedStore.setEffects({ ...effects, bass: { ...effects.bass, ...patch } });
+	const setEightD = (patch: Partial<typeof effects.eightD>) => speedStore.setEffects({ ...effects, eightD: { ...effects.eightD, ...patch } });
 	const setDelay = (patch: Partial<typeof effects.delay>) => speedStore.setEffects({ ...effects, delay: { ...effects.delay, ...patch } });
 	const setReverb = (patch: Partial<typeof effects.reverb>) => speedStore.setEffects({ ...effects, reverb: { ...effects.reverb, ...patch } });
 
@@ -302,6 +303,51 @@ export const Settings = () => {
 						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
 							const value = parseNumber(e.target.value);
 							if (value !== undefined) setBass({ mix: Math.max(0, Math.min(100, value)) / 100 });
+						}}
+					/>
+					<LunaSwitchSetting
+						title="8D audio"
+						desc="LFO panning plus a constant pitch wobble, so the mix moves around your head."
+						checked={effects.eightD.enabled}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEightD({ enabled: e.target.checked })}
+					/>
+					<LunaTextSetting
+						title="8D pan rate (Hz)"
+						desc="How fast the sound travels left/right."
+						defaultValue={String(effects.eightD.rate)}
+						inputProps={{ inputMode: "decimal" }}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+							const value = parseNumber(e.target.value);
+							if (value !== undefined) setEightD({ rate: Math.max(0.02, Math.min(2, value)) });
+						}}
+					/>
+					<LunaTextSetting
+						title="8D pan depth (%)"
+						defaultValue={String(Math.round(effects.eightD.panDepth * 100))}
+						inputProps={{ inputMode: "numeric" }}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+							const value = parseNumber(e.target.value);
+							if (value !== undefined) setEightD({ panDepth: Math.max(0, Math.min(100, value)) / 100 });
+						}}
+					/>
+					<LunaTextSetting
+						title="8D pitch rate (Hz)"
+						desc="Speed of the constant pitch wobble."
+						defaultValue={String(effects.eightD.pitchRate)}
+						inputProps={{ inputMode: "decimal" }}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+							const value = parseNumber(e.target.value);
+							if (value !== undefined) setEightD({ pitchRate: Math.max(0.02, Math.min(2, value)) });
+						}}
+					/>
+					<LunaTextSetting
+						title="8D pitch depth (ms)"
+						desc="Delay modulation depth; higher = wider pitch smear."
+						defaultValue={String(effects.eightD.pitchDepth)}
+						inputProps={{ inputMode: "decimal" }}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+							const value = parseNumber(e.target.value);
+							if (value !== undefined) setEightD({ pitchDepth: Math.max(0, Math.min(12, value)) });
 						}}
 					/>
 					<LunaSwitchSetting

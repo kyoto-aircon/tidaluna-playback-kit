@@ -24,6 +24,13 @@ describe("effects settings", () => {
 		assert.deepEqual(effects.eq.bands, [6, 6, -3, -3, -3, 2, 2, 2]);
 	});
 
+	it("clamps 8D ranges", () => {
+		const effects = normalizeEffects({ eightD: { enabled: true, rate: 99, panDepth: 2, pitchRate: 0, pitchDepth: 99 } });
+		assert.deepEqual(effects.eightD, { enabled: true, rate: 2, panDepth: 1, pitchRate: 0.02, pitchDepth: 12 });
+		assert.equal(hasAudibleEffects(effects), true);
+		assert.match(describeEffects(effects), /8D 2.00 Hz/);
+	});
+
 	it("clamps bass boost ranges", () => {
 		const effects = normalizeEffects({ bass: { enabled: true, boost: 99, sub: -5, drive: 3, mix: 2 } });
 		assert.deepEqual(effects.bass, { enabled: true, boost: 24, sub: 0, drive: 1, mix: 1 });

@@ -31,6 +31,18 @@ export interface BassSettings {
 	mix: number;
 }
 
+export interface EightDSettings {
+	enabled: boolean;
+	/** Pan LFO rate in Hz, 0.02..2. */
+	rate: number;
+	/** Pan depth, 0..1. */
+	panDepth: number;
+	/** Pitch wobble LFO rate in Hz, 0.02..2. */
+	pitchRate: number;
+	/** Pitch wobble depth in milliseconds, 0..12. */
+	pitchDepth: number;
+}
+
 export interface ReverbSettings {
 	enabled: boolean;
 	/** seconds, 0.2..8 */
@@ -42,6 +54,7 @@ export interface ReverbSettings {
 export interface EffectsSettings {
 	eq: EqSettings;
 	bass: BassSettings;
+	eightD: EightDSettings;
 	delay: DelaySettings;
 	reverb: ReverbSettings;
 }
@@ -49,6 +62,7 @@ export interface EffectsSettings {
 export const DEFAULT_EFFECTS: EffectsSettings = {
 	eq: { enabled: false, bands: Array.from({ length: EQ_BANDS }, () => 0) },
 	bass: { enabled: false, boost: 6, sub: 3, drive: 0.2, mix: 0.6 },
+	eightD: { enabled: false, rate: 0.12, panDepth: 0.8, pitchRate: 0.3, pitchDepth: 4 },
 	delay: { enabled: false, timeMs: 250, feedback: 0.25, mix: 0.25 },
 	reverb: { enabled: false, decay: 2, mix: 0.25 },
 };
@@ -76,6 +90,7 @@ const normalizeBands = (eq: Record<string, unknown>): number[] => {
 export const normalizeEffects = (value: unknown): EffectsSettings => {
 	const record = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
 	const eq = typeof record.eq === "object" && record.eq !== null ? (record.eq as Record<string, unknown>) : {};
+	const eightD = typeof record.eightD === "object" && record.eightD !== null ? (record.eightD as Record<string, unknown>) : {};
 	const bass = typeof record.bass === "object" && record.bass !== null ? (record.bass as Record<string, unknown>) : {};
 	const delay = typeof record.delay === "object" && record.delay !== null ? (record.delay as Record<string, unknown>) : {};
 	const reverb = typeof record.reverb === "object" && record.reverb !== null ? (record.reverb as Record<string, unknown>) : {};
@@ -83,6 +98,13 @@ export const normalizeEffects = (value: unknown): EffectsSettings => {
 		eq: {
 			enabled: bool(eq.enabled, DEFAULT_EFFECTS.eq.enabled),
 			bands: normalizeBands(eq),
+		},
+		eightD: {
+			enabled: bool(eightD.enabled, DEFAULT_EFFECTS.eightD.enabled),
+			rate: clamp(eightD.rate, 0.02, 2, DEFAULT_EFFECTS.eightD.rate),
+			panDepth: clamp(eightD.panDepth, 0, 1, DEFAULT_EFFECTS.eightD.panDepth),
+			pitchRate: clamp(eightD.pitchRate, 0.02, 2, DEFAULT_EFFECTS.eightD.pitchRate),
+			pitchDepth: clamp(eightD.pitchDepth, 0, 12, DEFAULT_EFFECTS.eightD.pitchDepth),
 		},
 		bass: {
 			enabled: bool(bass.enabled, DEFAULT_EFFECTS.bass.enabled),
@@ -105,11 +127,13 @@ export const normalizeEffects = (value: unknown): EffectsSettings => {
 	};
 };
 
-export const hasAudibleEffects = (effects: EffectsSettings): boolean => effects.eq.enabled || effects.bass.enabled || effects.delay.enabled || effects.reverb.enabled;
+export const hasAudibleEffects = (effects: EffectsSettings): boolean =>
+	effects.eq.enabled || effects.bass.enabled || effects.eightD.enabled || effects.delay.enabled || effects.reverb.enabled;
 
 export const describeEffects = (effects: EffectsSettings): string => {
 	const parts: string[] = [];
 	if (effects.eq.enabled) parts.push("EQ 8-band");
+	if (effects.eightD.enabled) parts.push(`8D ${effects.eightD.rate.toFixed(2)} Hz`);
 	if (effects.bass.enabled) parts.push(`Bass +${Math.round(effects.bass.boost)} dB`);
 	if (effects.delay.enabled) parts.push(`Delay ${Math.round(effects.delay.timeMs)} ms`);
 	if (effects.reverb.enabled) parts.push(`Reverb ${effects.reverb.decay.toFixed(1)} s`);

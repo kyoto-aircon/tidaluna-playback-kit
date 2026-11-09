@@ -68,3 +68,8 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 
 - Parallel send inside the effects group: `eqTail -> (dry) -> delay` and `eqTail -> lowpass 220 -> sub shelf 45 -> boost shelf 90 -> pre-gain -> tanh shaper (4x oversample) -> wet -> delay`. Wet is added to dry, not a crossfade, so mids/highs are untouched.
 - `bass.boost` 0–24 dB, `bass.sub` 0–12 dB, `bass.drive` 0–1 (pre-gain 1+3·drive), `bass.mix` 0–1. A DynamicsCompressor limiter (-3 dB, 20:1) sits before the chain output for every effect.
+
+## 8D audio
+
+- Series stage between bass and delay: `eightDInput -> delay (15 ms base) -> StereoPanner -> eightDOut`. A sine LFO (rate/Hz) drives `panDepth` into `panner.pan`; a second sine LFO drives `pitchDepth/1000` seconds into the delay time (vibrato). Both oscillators start once and depths go to 0 when disabled.
+- `eightD.rate`/`pitchRate` 0.02–2 Hz, `panDepth` 0–1, `pitchDepth` 0–12 ms.

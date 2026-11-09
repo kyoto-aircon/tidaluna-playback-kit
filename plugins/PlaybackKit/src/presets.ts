@@ -91,6 +91,18 @@ const parsePresets = (raw: string | null): PlaybackPreset[] => {
 	return presets;
 };
 
+const sameEffects = (a: EffectsSettings, b: EffectsSettings): boolean => {
+	if (a.eq.enabled !== b.eq.enabled || a.eq.bands.length !== b.eq.bands.length) return false;
+	for (let index = 0; index < a.eq.bands.length; index += 1) if (a.eq.bands[index] !== b.eq.bands[index]) return false;
+	const keys = ["enabled", "boost", "sub", "drive", "mix"] as const;
+	for (const key of keys) if (a.bass[key] !== b.bass[key]) return false;
+	const eightDKeys = ["enabled", "rate", "panDepth", "pitchRate", "pitchDepth"] as const;
+	for (const key of eightDKeys) if (a.eightD[key] !== b.eightD[key]) return false;
+	const delayKeys = ["enabled", "timeMs", "feedback", "mix"] as const;
+	for (const key of delayKeys) if (a.delay[key] !== b.delay[key]) return false;
+	return a.reverb.enabled === b.reverb.enabled && a.reverb.decay === b.reverb.decay && a.reverb.mix === b.reverb.mix;
+};
+
 /** True when the live playback/effect state matches the preset snapshot. */
 export const presetMatches = (
 	preset: PlaybackPreset,
@@ -99,7 +111,7 @@ export const presetMatches = (
 	preset.speed === state.speed &&
 	preset.pitchShifts === state.pitchShifts &&
 	preset.pitchSemitones === state.pitchSemitones &&
-	JSON.stringify(preset.effects) === JSON.stringify(state.effects);
+	sameEffects(preset.effects, state.effects);
 
 export const createPresetStore = (storage: PresetStorage, key: string = PRESETS_KEY) => {
 	let customs = parsePresets(storage.getItem(key));
