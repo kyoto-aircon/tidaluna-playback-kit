@@ -2,6 +2,7 @@ import type { LunaUnload } from "@luna/core";
 import { StyleTag } from "@luna/lib";
 
 import { copyReport, debugLog, PLUGIN_VERSION } from "./debug";
+import { describeEffects } from "./effectsSettings";
 import { formatSemitones, MIN_SEMITONES, MAX_SEMITONES } from "./pitch";
 import type { PitchEngineState } from "./pitchEngine";
 import type { PlayerKind } from "./playerKind";
@@ -222,6 +223,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		custom.className = "lunaspeed-preset";
 		custom.textContent = "Custom";
 		custom.dataset.active = String(activeId === null);
+		custom.setAttribute("aria-pressed", String(activeId === null));
 		custom.addEventListener("click", () => presets.clear());
 		chips.push(custom);
 
@@ -232,8 +234,9 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 			const isActive = activeId === preset.id;
 			chip.textContent = isActive && dirty ? `${preset.name} *` : preset.name;
 			chip.dataset.active = String(isActive);
+			chip.setAttribute("aria-pressed", String(isActive));
 			chip.dataset.builtin = String(preset.builtin === true);
-			chip.title = `${preset.name} — ${speedLabel(preset.speed)}${preset.pitchShifts ? ", pitch follows speed" : preset.pitchSemitones !== 0 ? `, ${formatSemitones(preset.pitchSemitones)} st` : ""}`;
+			chip.title = `${preset.name} — ${speedLabel(preset.speed)} · ${preset.pitchShifts ? "pitch follows speed" : preset.pitchSemitones !== 0 ? `pitch ${formatSemitones(preset.pitchSemitones)} st` : "pitch preserved"} · ${describeEffects(preset.effects)}`;
 			chip.addEventListener("click", () => presets.apply(preset));
 			chips.push(chip);
 		}

@@ -81,5 +81,5 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 
 ## Built-in presets
 
-- `BUILTIN_PRESETS` = Nightcore, Slowcore, Big Bass, 8D Orbit, Dub Echo (ids `nightcore`, `slowcore`, `big-bass`, `eight-d`, `dub-echo`). They are implicit (never stored in config) and `BUILTIN_IDS` blocks rename/update/move/delete.
+- `BUILTIN_PRESETS` = Nightcore, Daycore, Slowcore, Chipmunk, Vaporwave, Big Bass, Submerge, 8D Orbit, Dub Echo, Clear Voice (ids `nightcore`, `daycore`, `slowcore`, `chipmunk`, `vaporwave`, `big-bass`, `submerge`, `eight-d`, `dub-echo`, `clear-voice`). They are implicit (never stored in config) and `BUILTIN_IDS` blocks rename/update/move/delete.
 - `settings.builtinPresets` (default true) filters them out of the pickers via the `list` option and Settings; `enforcePresetVisibility` clears an active built-in when hidden.

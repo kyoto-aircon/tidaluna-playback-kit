@@ -20,10 +20,21 @@ describe("preset store", () => {
 	it("always exposes the built-in presets first", () => {
 		const presets = createPresetStore(fakeStorage()).get();
 		assert.equal(presets.length, BUILTIN_PRESETS.length);
-		assert.deepEqual(presets.map((preset) => preset.name), ["Nightcore", "Slowcore", "Big Bass", "8D Orbit", "Dub Echo"]);
+		assert.deepEqual(presets.map((preset) => preset.name), [
+			"Nightcore",
+			"Daycore",
+			"Slowcore",
+			"Chipmunk",
+			"Vaporwave",
+			"Big Bass",
+			"Submerge",
+			"8D Orbit",
+			"Dub Echo",
+			"Clear Voice",
+		]);
 		assert.deepEqual(presets[0], NIGHTCORE_PRESET);
-		assert.equal(presets[2].effects.bass.enabled, true, "Big Bass uses the bass effect");
-		assert.equal(presets[1].effects.reverb.enabled, true, "Slowcore uses reverb");
+		assert.equal(presets.find((preset) => preset.id === "big-bass")?.effects.bass.enabled, true, "Big Bass uses the bass effect");
+		assert.equal(presets.find((preset) => preset.id === "slowcore")?.effects.reverb.enabled, true, "Slowcore uses reverb");
 	});
 
 	it("saves custom presets and persists them", () => {

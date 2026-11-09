@@ -393,15 +393,22 @@ export const SPEED_CSS = `
 }
 .lunaspeed-presets {
 	display: flex;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 	gap: 6px;
 	margin: 0 0 14px;
+	overflow-x: auto;
+	scrollbar-width: none;
+	padding-bottom: 2px;
+}
+.lunaspeed-presets::-webkit-scrollbar {
+	display: none;
 }
 .lunaspeed-presets[hidden] {
 	display: none;
 }
 .lunaspeed-preset,
 .lunaspeed-save-toggle {
+	flex: 0 0 auto;
 	border: 1px solid var(--lunaspeed-border);
 	background: transparent;
 	color: var(--lunaspeed-muted);
@@ -424,6 +431,10 @@ export const SPEED_CSS = `
 }
 .lunaspeed-save-toggle {
 	border-style: dashed;
+	position: sticky;
+	right: 0;
+	background: var(--lunaspeed-surface);
+	box-shadow: -8px 0 8px -6px var(--lunaspeed-surface);
 }
 .lunaspeed-save {
 	display: flex;

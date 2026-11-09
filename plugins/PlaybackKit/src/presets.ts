@@ -112,7 +112,71 @@ export const DUB_ECHO_PRESET: PlaybackPreset = {
 	builtin: true,
 };
 
-export const BUILTIN_PRESETS: readonly PlaybackPreset[] = [NIGHTCORE_PRESET, SLOWCORE_PRESET, BIG_BASS_PRESET, EIGHT_D_PRESET, DUB_ECHO_PRESET];
+export const DAYCORE_PRESET: PlaybackPreset = {
+	id: "daycore",
+	name: "Daycore",
+	speed: 0.85,
+	pitchShifts: true,
+	pitchSemitones: 0,
+	effects: effectsOf({ reverb: { enabled: true, decay: 2.5, mix: 0.2 } }),
+	builtin: true,
+};
+
+export const CHIPMUNK_PRESET: PlaybackPreset = {
+	id: "chipmunk",
+	name: "Chipmunk",
+	speed: 1.6,
+	pitchShifts: true,
+	pitchSemitones: 0,
+	effects: effectsOf({}),
+	builtin: true,
+};
+
+export const VAPORWAVE_PRESET: PlaybackPreset = {
+	id: "vaporwave",
+	name: "Vaporwave",
+	speed: 0.7,
+	pitchShifts: true,
+	pitchSemitones: 0,
+	effects: effectsOf({ reverb: { enabled: true, decay: 5, mix: 0.35 }, delay: { enabled: true, timeMs: 300, feedback: 0.3, mix: 0.2 } }),
+	builtin: true,
+};
+
+export const SUBMERGE_PRESET: PlaybackPreset = {
+	id: "submerge",
+	name: "Submerge",
+	speed: 0.95,
+	pitchShifts: false,
+	pitchSemitones: 0,
+	effects: effectsOf({
+		bass: { enabled: true, boost: 10, sub: 5, drive: 0.3, mix: 0.6 },
+		eightD: { enabled: true, rate: 0.08, panDepth: 0.7, pitchRate: 0.2, pitchDepth: 3 },
+	}),
+	builtin: true,
+};
+
+export const CLEAR_VOICE_PRESET: PlaybackPreset = {
+	id: "clear-voice",
+	name: "Clear Voice",
+	speed: 1.15,
+	pitchShifts: false,
+	pitchSemitones: 0,
+	effects: effectsOf({ eq: { enabled: true, bands: [-4, -2, 1, 2, 2, 1, 0, 0] } }),
+	builtin: true,
+};
+
+export const BUILTIN_PRESETS: readonly PlaybackPreset[] = [
+	NIGHTCORE_PRESET,
+	DAYCORE_PRESET,
+	SLOWCORE_PRESET,
+	CHIPMUNK_PRESET,
+	VAPORWAVE_PRESET,
+	BIG_BASS_PRESET,
+	SUBMERGE_PRESET,
+	EIGHT_D_PRESET,
+	DUB_ECHO_PRESET,
+	CLEAR_VOICE_PRESET,
+];
 const BUILTIN_IDS = new Set(BUILTIN_PRESETS.map((preset) => preset.id));
 
 const MAX_NAME_LENGTH = 24;
