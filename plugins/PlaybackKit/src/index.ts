@@ -24,12 +24,13 @@ import {
 	snapshotSelectors,
 } from "./debug";
 import { getMediaElements, SpeedController } from "./mediaController";
-import { applyNativeRate, captureNativeComponent, hasNativeInstance, probeNativeComponent } from "./nativePlayer";
+import { applyNativeRate, captureNativeComponent, getNativeVolume, hasNativeInstance, probeNativeComponent, setNativeVolume } from "./nativePlayer";
 import { readProbe, startProbe, stopProbe } from "./nativeProbe.native";
 import { getPitchEngineState, resetPitchEngine, setPitchSemitones } from "./pitchEngine";
 import { getPlayerKind, setPlayerKind, subscribePlayerKind, type PlayerKind } from "./playerKind";
 import { enforcePresetVisibility, saveActivePreset } from "./presetActions";
 import { presetStore, type PlaybackPreset, type PresetValues } from "./presets";
+import { getShadowStatus, startShadowPlayer, updateShadowPlayer } from "./shadowPlayer";
 import { speedStore } from "./state";
 import { startTimeSync, syncOnce } from "./timeSync";
 
@@ -329,6 +330,7 @@ const installDebugApi = (controller: SpeedController): void => {
 		audioEngine: getAudioEngineStatus,
 		native: probeNativeComponent,
 		nativeProbe: readProbe,
+		shadow: getShadowStatus,
 		store: speedStore,
 		controller,
 	};
@@ -347,7 +349,7 @@ try {
 		const task = enabled ? startProbe() : stopProbe();
 		void task.catch((err) => debugLog("warn", "native stream probe failed", { error: String(err) }));
 	};
-	syncNativeProbe(speedStore.get().developerMode);
+	syncNativeProbe(speedStore.get().developerMode || speedStore.get().nativeEffects);
 	registerReportProbe(() => readProbe());
 	registerTidalProbe(probeActivePlayer);
 	try {
@@ -370,6 +372,7 @@ try {
 		presetId: speedStore.get().presetId,
 		uiTime: readUiPosition(),
 		actualTime: getActualPosition(),
+		shadow: getShadowStatus(),
 	}));
 
 	captureNativeComponent();
@@ -388,9 +391,19 @@ try {
 	const controller = new SpeedController(getMediaElements, speedStore);
 	controller.start();
 
+	startShadowPlayer(unloads, {
+		getNativePosition: getActualPosition,
+		isPlaying,
+		setNativeVolume,
+		getInitialVolume: getNativeVolume,
+		getSettings: () => speedStore.get(),
+	});
+	updateShadowPlayer(speedStore.get());
+
 	const unsubscribe = speedStore.subscribe((settings) => {
 		setDiagnosticsEnabled(settings.developerMode);
-		syncNativeProbe(settings.developerMode);
+		syncNativeProbe(settings.developerMode || settings.nativeEffects);
+		updateShadowPlayer(settings);
 		scheduleConfigSave();
 		debugLog("info", "settings changed", { speed: settings.speed, pitchShifts: settings.pitchShifts, bounds: settings.bounds });
 		controller.apply();
@@ -424,6 +437,7 @@ try {
 		presets: presetControls,
 		getPitchEngineState,
 		openSettings: openLunaSettings,
+		enableNativeEffects: () => speedStore.setNativeEffects(true),
 		onOpen: () => {
 			const semitones = speedStore.get().pitchSemitones;
 			if (semitones !== 0) void setPitchSemitones(semitones, getMediaElements());

@@ -98,5 +98,14 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 
 - `nativeProbe.native.ts` runs in main and listens on the `player.message` IPC channel. It records `media.load` / `media.preload` descriptors and performs one 128 KiB range fetch per load.
 - Signed stream URLs never cross the bridge: only origin, extension, path length, query **names**, `streamFormat`, and whether `encryptionKey` is non-empty are returned. The fetch keeps headers and the first bytes (`fLaC` detection).
-- Started only when developer mode is on (Electron trust prompt once per build) and stopped on unload. `debug.ts` awaits it via `registerReportProbe` and prints it as the `nativeProbe` block in Copy diagnostics.
-- Purpose: validate the shadow-player idea (same FLAC URL fetchable/decodable) without touching audio. If `fetch.status` is 403/401 or the head is not `fLaC`, the tap needs a session header or a different URL.
+- Started when developer mode **or** native effects is on (Electron trust prompt once per build) and stopped on unload. `debug.ts` awaits it via `registerReportProbe` and prints it as the `nativeProbe` block in Copy diagnostics.
+- Purpose: diagnostics for the native stream; the same state now also powers the shadow player. If `fetch.status` is 403/401 or `track.error` mentions a bad head, the URL/key handling needs revisiting.
+
+## Native shadow player (effects on lossless)
+
+- `nativeProbe.native.ts` is the main-process bridge: listens on `player.message`, keeps the raw `media.load` url/key in main only, downloads + decrypts the stream, and serves `readTrack` chunks (1 MB max) / `prepareLastLoad` / `releaseTrack`. The probe diagnostics are part of the same state (`readProbe`).
+- `losslessCrypto.ts` implements TIDAL `OLD_AES`: base64 token → `iv = token[0..16]`, wrapped key, AES-256-CBC with the master key embedded in TIDALPlayer.exe (`UIlTTEM…`), then AES-128-CTR with counter `nonce || 0^8`. Decrypted bytes must start with `fLaC`; anything else fails open.
+- `shadowPlayer.ts` polls `readProbe` (~800 ms), prepares the current load, fetches chunks, `decodeAudioData`, plays an `AudioBufferSourceNode` through `audioEngine.connectSource`, and keeps it within 0.4 s of `getActualPosition()`. Native is muted with `media.volume 0` via a cached `NativePlayerComponent.Player()` instance (preload `f_` sends to the same main channel). Volume is re-zeroed every 250 ms while shadowing and restored from the last non-zero `media.volume` on pause/disable/unload.
+- Activation: `settings.nativeEffects` (default false) + native player + at least one audible effect or a pitch offset. The popover shows **Enable effects**; Settings has the same switch. It applies from the next `media.load`, so enabling mid-track needs a track change or restart.
+- The bridge starts when developer mode **or** nativeEffects is on (electron trust prompt once per build); `stopProbe` clears prepared bytes and must run on unload. Listener identity is stored on `luna.__playbackKitNativeProbe` so a live reload removes the stale listener.
+- Limitations: speed stays disabled on native; output follows the Web Audio default sink (not TIDAL's selected device); exclusive-mode mute may hit the endpoint; one extra download per track (~55 MB HiRes). Prefetch/gapless is not implemented yet.

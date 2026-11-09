@@ -85,6 +85,52 @@ export const captureNativeComponent = (): boolean => {
 
 export const hasNativeInstance = (): boolean => instance !== undefined;
 
+interface NativePlayerControl {
+	setVolume?: (volume: number) => void;
+	volume?: number;
+}
+
+let control: NativePlayerControl | undefined;
+
+/**
+ * The preload exposes `NativePlayerComponent.Player()` to the page. A second
+ * instance shares the same main-process `player.message` channel, so calling
+ * `setVolume` here drives the one native player TIDAL is using.
+ */
+const getControl = (): NativePlayerControl | undefined => {
+	const global = globalThis as Record<string, unknown>;
+	const container = global.NativePlayerComponent as { Player?: () => NativePlayerControl } | undefined;
+	if (container === undefined || typeof container.Player !== "function") return undefined;
+	if (control === undefined) {
+		try {
+			control = container.Player();
+		} catch (err) {
+			debugLog("error", "native volume control unavailable", { error: String(err) });
+			return undefined;
+		}
+	}
+	return control;
+};
+
+/** 0..1; TIDAL's native player takes 0..100. */
+export const setNativeVolume = (volume: number): void => {
+	const target = getControl();
+	if (target === undefined || typeof target.setVolume !== "function") return;
+	try {
+		target.setVolume(Math.round(Math.max(0, Math.min(1, volume)) * 100));
+	} catch (err) {
+		debugLog("error", "native volume set failed", { error: String(err) });
+	}
+};
+
+/** Desired volume from TIDAL's settings store, when the preload exposes it. */
+export const getNativeVolume = (): number | undefined => {
+	const target = getControl();
+	const value = target?.volume;
+	if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+	return Math.max(0, Math.min(1, value));
+};
+
 export const applyNativeRate = (rate: number): boolean => {
 	if (instance === undefined) return false;
 	if (rateMember === undefined) rateMember = findRateMember(instance);

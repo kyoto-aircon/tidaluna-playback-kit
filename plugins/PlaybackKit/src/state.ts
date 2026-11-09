@@ -19,6 +19,8 @@ export interface SpeedSettings {
 	developerMode: boolean;
 	/** Show the stock presets in the pickers. */
 	builtinPresets: boolean;
+	/** Play the native lossless stream through the effects graph (experimental). */
+	nativeEffects: boolean;
 	/** Delay / reverb / EQ settings. */
 	effects: EffectsSettings;
 	/** Slider range and snap increment. */
@@ -39,6 +41,7 @@ const defaults = (): SpeedSettings => ({
 	presetId: null,
 	developerMode: false,
 	builtinPresets: true,
+	nativeEffects: false,
 	effects: normalizeEffects(undefined),
 	bounds: { ...DEFAULT_BOUNDS },
 });
@@ -62,6 +65,7 @@ const parseSettings = (raw: string | null): SpeedSettings => {
 		presetId: typeof record.presetId === "string" ? record.presetId : null,
 		developerMode: record.developerMode === true,
 		builtinPresets: record.builtinPresets !== false,
+		nativeEffects: record.nativeEffects === true,
 		effects: normalizeEffects(record.effects),
 		bounds,
 	};
@@ -85,6 +89,7 @@ const sameSettings = (a: SpeedSettings, b: SpeedSettings): boolean =>
 	a.presetId === b.presetId &&
 	a.developerMode === b.developerMode &&
 	a.builtinPresets === b.builtinPresets &&
+	a.nativeEffects === b.nativeEffects &&
 	JSON.stringify(a.effects) === JSON.stringify(b.effects) &&
 	a.bounds.min === b.bounds.min &&
 	a.bounds.max === b.bounds.max &&
@@ -162,6 +167,9 @@ export const createSpeedStore = (storage: StorageLike, key: string = STORAGE_KEY
 		setBuiltinPresets(builtinPresets: boolean): void {
 			commit({ ...settings, builtinPresets });
 		},
+		setNativeEffects(nativeEffects: boolean): void {
+			commit({ ...settings, nativeEffects });
+		},
 		clearPreset(): void {
 			commit({ ...settings, presetId: null });
 		},
@@ -176,6 +184,7 @@ export const createSpeedStore = (storage: StorageLike, key: string = STORAGE_KEY
 				presetId: typeof next.presetId === "string" ? next.presetId : null,
 				developerMode: next.developerMode === true,
 				builtinPresets: next.builtinPresets !== false,
+				nativeEffects: next.nativeEffects === true,
 				effects: normalizeEffects(next.effects),
 				bounds,
 			});

@@ -324,6 +324,7 @@ export const SPEED_CSS = `
 	color: var(--lunaspeed-muted);
 }
 .lunaspeed-warning-action,
+.lunaspeed-warning-effects,
 .lunaspeed-quality-action {
 	align-self: flex-start;
 	margin: 4px 0 0;
@@ -339,10 +340,12 @@ export const SPEED_CSS = `
 	text-underline-offset: 2px;
 }
 .lunaspeed-warning-action:hover,
+.lunaspeed-warning-effects:hover,
 .lunaspeed-quality-action:hover {
 	filter: brightness(1.2);
 }
 .lunaspeed-warning-action:disabled,
+.lunaspeed-warning-effects:disabled,
 .lunaspeed-quality-action:disabled {
 	color: var(--lunaspeed-faint);
 	cursor: default;

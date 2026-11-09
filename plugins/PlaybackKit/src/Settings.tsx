@@ -61,7 +61,7 @@ export const Settings = () => {
 		return () => clearTimeout(timer);
 	}, [configStatus]);
 
-	const { bounds, pitchShifts, developerMode, effects, builtinPresets } = settings;
+	const { bounds, pitchShifts, developerMode, effects, builtinPresets, nativeEffects } = settings;
 	const visiblePresets = builtinPresets ? presets : presets.filter((preset) => preset.builtin !== true);
 	const firstCustomIndex = visiblePresets.findIndex((preset) => preset.builtin !== true);
 
@@ -252,6 +252,17 @@ export const Settings = () => {
 							</LunaSetting>
 						</>
 					)}
+				</LunaSettings>
+			</Section>
+
+			<Section>
+				<LunaSettings title="Native player" desc="TIDAL's lossless player runs in a separate process. This plays the same stream through the effects chain.">
+					<LunaSwitchSetting
+						title="Effects on native lossless"
+						desc="Experimental. Downloads the track a second time (prefetched where possible) and mutes TIDAL's own playback. Needs the electron trust prompt; speed stays disabled on native."
+						checked={nativeEffects}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => speedStore.setNativeEffects(e.target.checked)}
+					/>
 				</LunaSettings>
 			</Section>
 

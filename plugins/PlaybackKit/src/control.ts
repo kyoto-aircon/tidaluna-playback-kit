@@ -56,6 +56,7 @@ export interface SpeedControlOptions {
 	presets?: PresetControls;
 	getPitchEngineState?: () => PitchEngineState;
 	openSettings?: () => void;
+	enableNativeEffects?: () => void;
 	onOpen?: () => void;
 }
 
@@ -129,7 +130,8 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		</div>
 		<div class="lunaspeed-warning" hidden>
 			<span class="lunaspeed-warning-title">Native (lossless) player</span>
-			<span class="lunaspeed-warning-text">TIDAL ignores speed and pitch here. They need the browser player.</span>
+			<span class="lunaspeed-warning-text">TIDAL ignores effects, speed and pitch here. Enable effects or use the browser player.</span>
+			<button class="lunaspeed-warning-effects" type="button">Enable effects</button>
 			<button class="lunaspeed-warning-action" type="button">Use browser player</button>
 		</div>
 		<div class="lunaspeed-quality" hidden>
@@ -161,6 +163,8 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 	const settingsButton = popover.querySelector<HTMLButtonElement>(".lunaspeed-settings") as HTMLButtonElement;
 	const pitchDot = popover.querySelector<HTMLElement>(".lunaspeed-pitch-dot") as HTMLElement;
 	const warning = popover.querySelector<HTMLElement>(".lunaspeed-warning") as HTMLElement;
+	const warningText = popover.querySelector<HTMLElement>(".lunaspeed-warning-text") as HTMLElement;
+	const warningEffects = popover.querySelector<HTMLButtonElement>(".lunaspeed-warning-effects") as HTMLButtonElement;
 	const warningAction = popover.querySelector<HTMLButtonElement>(".lunaspeed-warning-action") as HTMLButtonElement;
 	const quality = popover.querySelector<HTMLElement>(".lunaspeed-quality") as HTMLElement;
 	const qualityAction = popover.querySelector<HTMLButtonElement>(".lunaspeed-quality-action") as HTMLButtonElement;
@@ -276,6 +280,13 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 
 	const renderPlayerState = (kind: PlayerKind): void => {
 		warning.hidden = kind !== "native";
+		const nativeEffects = store.get().nativeEffects;
+		warningText.textContent = nativeEffects
+			? "Effects and pitch run through Playback Kit. Speed still needs the browser player."
+			: "TIDAL ignores effects, speed and pitch here. Enable effects or use the browser player.";
+		warningEffects.hidden = nativeEffects;
+		warningEffects.disabled = false;
+		warningEffects.textContent = "Enable effects";
 		const previous = options.previousQuality?.() ?? null;
 		const showQuality = kind !== "native" && previous !== null;
 		quality.hidden = !showQuality;
@@ -305,6 +316,7 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 		renderPitch(pitchSemitones, pitchShifts);
 		renderEngine(pitchSemitones);
 		copyButton.hidden = !settings.developerMode;
+		renderPlayerState(options.getPlayerKind?.() ?? "unknown");
 
 		if (isOpen) positionPopover();
 	};
@@ -504,6 +516,12 @@ export const setupSpeedControl = (unloads: Set<LunaUnload>, store: SpeedStore, o
 	});
 
 	let switchTimer: ReturnType<typeof setTimeout> | undefined;
+	warningEffects.addEventListener("click", () => {
+		options.enableNativeEffects?.();
+		warningEffects.disabled = true;
+		warningEffects.textContent = "Enabled";
+		debugLog("info", "enabled native effects from warning");
+	});
 	warningAction.addEventListener("click", () => {
 		if (options.useBrowserPlayer === undefined) return;
 		if (switchTimer !== undefined) clearTimeout(switchTimer);

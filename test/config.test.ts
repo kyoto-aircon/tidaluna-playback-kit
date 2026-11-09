@@ -12,6 +12,7 @@ const settings = {
 	presetId: "nightcore",
 	developerMode: false,
 	builtinPresets: true,
+	nativeEffects: false,
 	effects: DEFAULT_EFFECTS,
 	bounds: { min: 0.05, max: 10, step: 0.01 },
 };

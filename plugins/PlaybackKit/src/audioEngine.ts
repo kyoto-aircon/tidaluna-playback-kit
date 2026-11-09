@@ -20,6 +20,9 @@ export interface AudioEngineApi {
 	ensureContext(): Promise<AudioContext>;
 	loadWorklet(source: string, name: string): Promise<void>;
 	attach(element: HTMLMediaElement): Promise<void>;
+	/** Connect a non-element source (shadow player) to the chain input. */
+	connectSource(node: AudioNode): Promise<void>;
+	disconnectSource(node: AudioNode): void;
 	insert(node: AudioNode, index?: number): Promise<void>;
 	insertGroup(input: AudioNode, output: AudioNode, index?: number): Promise<void>;
 	remove(node: AudioNode): Promise<boolean>;
@@ -155,6 +158,26 @@ export const attach = async (element: HTMLMediaElement): Promise<void> => {
 	debugLog("info", "audio engine attached element", { id: element.id, sources: sources.size });
 };
 
+const externalSources = new Set<AudioNode>();
+
+/** Connect a node that already produces audio (e.g. an AudioBufferSourceNode). */
+export const connectSource = async (node: AudioNode): Promise<void> => {
+	const { input } = await ensureChain();
+	if (externalSources.has(node)) return;
+	node.connect(input);
+	externalSources.add(node);
+	debugLog("info", "audio engine connected external source", { inputs: externalSources.size });
+};
+
+export const disconnectSource = (node: AudioNode): void => {
+	externalSources.delete(node);
+	try {
+		node.disconnect();
+	} catch {
+		// Already disconnected.
+	}
+};
+
 export const insert = async (node: AudioNode, index?: number): Promise<void> => {
 	await insertGroup(node, node, index);
 };
@@ -224,6 +247,8 @@ export const getAudioEngineApi = (): AudioEngineApi => ({
 	ensureContext,
 	loadWorklet,
 	attach,
+	connectSource,
+	disconnectSource,
 	insert,
 	insertGroup,
 	remove,

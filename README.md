@@ -44,6 +44,7 @@ current audio chain — all following TIDAL's theme, fonts and type scale.
 | 🎨 **Theme-aware** | Colours, fonts and rem sizes come from TIDAL's own tokens and the app root — TidaLuna themes apply automatically. |
 | 🧭 **Honest scrubber** | At any rate other than 1× the plugin re-feeds the real position so audio and progress bar stay aligned. |
 | 🩺 **Developer mode** | Off by default. Enables logs, Copy diagnostics, an **audio engine self-test** that measures captured RMS, and a **native stream probe** that records the lossless `media.load` host/format and fetches the first 128 KiB (signed URLs are redacted). |
+| 🎛️ **Effects on native lossless** | Experimental. Decrypts and decodes the same FLAC the native player is using and plays it through the effects graph; TIDAL stays the clock. One extra download per track, prefetched where possible. Speed stays disabled on native. |
 
 ## How it works
 
@@ -86,10 +87,12 @@ flowchart TD
     PLAY["▶️ Playback starts"] --> WHICH{"Which player?"}
 
     WHICH -->|"HIGH / browser player"| SHAKA["🎬 shakaPlayer<br/>HTMLMediaElement"]
-    WHICH -->|"LOSSLESS / HI_RES"| NATIVE["🧱 nativePlayer<br/>no media element"]
+    WHICH -->|"LOSSLESS / HI_RES"| NATIVE["🧱 nativePlayer<br/>separate process"]
 
     SHAKA --> WORKS["✅ speed · pitch · effects"]
-    NATIVE --> NOOP["❌ everything ignored"]
+    NATIVE -->|"effects enabled"| SHADOW["🎛️ shadow player<br/>decrypt → decode → effects"]
+    NATIVE -->|"effects off"| NOOP["❌ everything ignored"]
+    SHADOW --> WORKS
     NOOP -.->|"Use browser player"| SHAKA
 
     classDef start fill:#DDF4FF,stroke:#0969DA,stroke-width:2px,color:#0A3069
@@ -98,12 +101,15 @@ flowchart TD
     classDef bad fill:#FFEBE9,stroke:#CF222E,stroke-width:2px,color:#5A0A0A
     class PLAY start
     class WHICH decision
-    class SHAKA,WORKS good
+    class SHAKA,WORKS,SHADOW good
     class NATIVE,NOOP bad
 ```
 
-On the native player the popover shows a warning with **Use browser player**, which switches
-TIDAL streaming quality to High. It remembers your previous quality and offers **Restore …**.
+On the native player the popover shows a warning. **Enable effects** turns on the shadow
+player: the plugin downloads the same lossless stream, decrypts it (`OLD_AES`) and decodes it
+into the effects graph, while TIDAL's native player keeps the clock and is muted. It applies
+from the **next track** (or after a TIDAL restart); after that, tracks are prepared as they
+load. **Use browser player** still switches TIDAL to High so speed also works.
 
 ## Presets
 
@@ -140,6 +146,7 @@ folder**, **Reload**, **Import…** and **Export…**.
     "presetId": "nightcore",
     "developerMode": false,
     "builtinPresets": true,
+    "nativeEffects": false,
     "effects": {
       "eq": { "enabled": true, "bands": [4, 2, 0, -2, -1, 0, 2, 3] },
       "bass": { "enabled": true, "boost": 8, "sub": 4, "drive": 0.35, "mix": 0.7 },
@@ -173,7 +180,9 @@ last change; edit the file with TIDAL closed or press **Reload** afterwards.
 
 | Symptom | Likely cause | What to do |
 |---|---|---|
-| Speed, pitch or effects do nothing | TIDAL is on the native lossless player | Popover → **Use browser player** (High quality) |
+| Speed, pitch or effects do nothing | TIDAL is on the native lossless player, or effects on native are off | Popover → **Enable effects**, or **Use browser player** (High quality) |
+| Enabled native effects but nothing changed | The bridge only sees loads after it starts | Change track or restart TIDAL once; then it applies to every track |
+| Native effects are silent or you still hear native audio | Exclusive mode blocks per-app mute, or the stream failed to decrypt/decode | Check the `shadow` and `nativeProbe.track` blocks in diagnostics; turn the setting off to restore native audio |
 | Effects/pitch still silent after switching | Web Audio capture blocked (DRM or element already connected) | Enable **Developer mode** → **Audio engine self-test**; `rms ≈ 0` means capture is blocked |
 | Want to debug native lossless playback | The native player is a separate process; the plugin can only see its `media.load` command | Enable **Developer mode**, play a LOSSLESS track, then **Copy diagnostics**. The `nativeProbe` block shows the stream host/format and whether a 128 KiB range fetch returned `fLaC`. |
 | Quality badge shows `96 kbps` | Older builds sent the wrong `SET_STREAMING_QUALITY` payload, so the quality never applied | Fixed in 2.14.2; otherwise pick **High** in TIDAL settings |
