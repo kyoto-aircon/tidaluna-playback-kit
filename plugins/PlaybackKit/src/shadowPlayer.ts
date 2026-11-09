@@ -55,6 +55,7 @@ let preparingId: number | null = null;
 
 let trackDuration = 0;
 let channels: [Float32Array, Float32Array] | undefined;
+let trackReady = false;
 let buffered = false;
 let stretchNode: StretchNode | undefined;
 let shadowGain: GainNode | undefined;
@@ -124,7 +125,7 @@ const setMuted = (next: boolean): void => {
 /** Puts the native renderer back at our position without stealing the clock. */
 const resumeNativeIfPaused = (): void => {
 	if (!nativePaused || deps === undefined) return;
-	const position = channels === undefined ? (deps.getNativePosition() ?? 0) : currentPosition();
+	const position = trackReady ? currentPosition() : (deps.getNativePosition() ?? 0);
 	deps.seekNative?.(position);
 	if (userPlaying) deps.playNativeAt?.(position, desiredVolume);
 	else deps.setNativeVolume(desiredVolume);
@@ -159,7 +160,7 @@ const applyRate = async (settings: SpeedSettings): Promise<void> => {
 };
 
 const startAt = async (position: number, followNative = true, reason = "start"): Promise<void> => {
-	if (channels === undefined) return;
+	if (!trackReady) return;
 	const ctx = await ensureContext();
 	if (ctx.state !== "running") throw new Error(`audio context is ${ctx.state}`);
 	if (!Number.isFinite(trackDuration) || trackDuration <= 0) return;
@@ -181,11 +182,16 @@ const startAt = async (position: number, followNative = true, reason = "start"):
 		}
 		node.connect(gain);
 		stretchNode = node;
+		// Buffers added to a previous node do not exist in this one.
+		if (buffered && channels === undefined) buffered = false;
 	}
 	if (!buffered) {
+		if (channels === undefined) throw new Error("decoded track buffers are no longer available; change track");
 		await node.dropBuffers();
 		await node.addBuffers(channels);
 		buffered = true;
+		// The worklet owns its copy; release the decoded view to halve peak memory.
+		channels = undefined;
 	}
 	const live = followNative ? (deps?.getNativePosition() ?? null) : null;
 	const start = live === null ? offset : Math.max(0, Math.min(live + 0.02, Math.max(0, trackDuration - 0.02)));
@@ -231,20 +237,36 @@ const decodeTrack = async (id: number, total: number): Promise<void> => {
 	const bytes = await readAll(id, total);
 	await releaseTrack(id);
 	const ctx = await ensureContext();
-	const copy = new ArrayBuffer(bytes.byteLength);
-	new Uint8Array(copy).set(bytes);
-	const audio = await ctx.decodeAudioData(copy);
+	const decode = async (): Promise<AudioBuffer> => {
+		const copy = new ArrayBuffer(bytes.byteLength);
+		new Uint8Array(copy).set(bytes);
+		return ctx.decodeAudioData(copy);
+	};
+	let audio: AudioBuffer;
+	try {
+		audio = await decode();
+	} catch (first) {
+		// HiRes tracks can hit transient memory pressure. One retry after the
+		// failed decode is released is cheap; corrupt data fails again.
+		debugLog("warn", "shadow decode failed; retrying", { error: String(first), bytes });
+		audio = await decode();
+	}
 	const estimated = audio.length * audio.numberOfChannels * 4;
 	if (estimated > MAX_BUFFER_BYTES) {
 		throw new Error(`decoded track is too large (${Math.round(estimated / 1024 / 1024)} MB)`);
 	}
-	const left = new Float32Array(audio.getChannelData(0));
-	const right = audio.numberOfChannels > 1 ? new Float32Array(audio.getChannelData(1)) : left.slice();
+	const left = audio.getChannelData(0);
+	const right = audio.numberOfChannels > 1 ? audio.getChannelData(1) : new Float32Array(left);
 	channels = [left, right];
 	trackDuration = audio.duration;
+	trackReady = true;
 	buffered = false;
 	phase = "ready";
-	debugLog("info", "shadow track decoded", { seconds: Number(audio.duration.toFixed(2)), channels: audio.numberOfChannels });
+	debugLog("info", "shadow track decoded", {
+		seconds: Number(audio.duration.toFixed(2)),
+		channels: audio.numberOfChannels,
+		estimatedMB: Math.round(estimated / 1024 / 1024),
+	});
 };
 
 const fail = (reason: unknown): void => {
@@ -254,6 +276,7 @@ const fail = (reason: unknown): void => {
 	stopSource();
 	resumeNativeIfPaused();
 	channels = undefined;
+	trackReady = false;
 	buffered = false;
 	setMuted(false);
 	debugLog("error", "shadow player failed", { error });
@@ -268,10 +291,11 @@ const runTick = async (): Promise<void> => {
 	const settings = deps.getSettings();
 	const active = enabled && getPlayerKind() === "native" && shouldRun(settings);
 	if (!active) {
-		if (sourcePlaying || channels !== undefined || muted || nativePaused) {
+		if (sourcePlaying || trackReady || muted || nativePaused) {
 			stopSource();
 			resumeNativeIfPaused();
 			channels = undefined;
+			trackReady = false;
 			buffered = false;
 			phase = "idle";
 			setMuted(false);
@@ -317,6 +341,7 @@ const runTick = async (): Promise<void> => {
 			failedLoadAt = null;
 			error = undefined;
 			channels = undefined;
+			trackReady = false;
 			buffered = false;
 			trackDuration = 0;
 			phase = "preparing";
@@ -326,6 +351,16 @@ const runTick = async (): Promise<void> => {
 			lastSeekAt = streams.seek?.at ?? 0;
 			stopSource();
 			setMuted(false);
+			// Free the previous track's worklet buffers before decoding the next
+			// HiRes file; 96 kHz/24-bit tracks are hundreds of MB decoded.
+			if (stretchNode !== undefined) {
+				try {
+					void stretchNode.schedule({ output: stretchNode.context.currentTime, active: false });
+				} catch {
+					// Node already gone.
+				}
+				void stretchNode.dropBuffers().catch(() => undefined);
+			}
 			const started = await prepareStream(streams.load.url, streams.load.format, streams.load.key);
 			preparingId = started?.id ?? null;
 			return;
@@ -358,7 +393,7 @@ const runTick = async (): Promise<void> => {
 	const seek = streamState.seek;
 	if (seek !== undefined && seek.at !== lastSeekAt) {
 		lastSeekAt = seek.at;
-		if (channels !== undefined) {
+		if (trackReady) {
 			if (userPlaying) await startAt(seek.time, false, "seek");
 			else {
 				if (sourcePlaying) stopSource();
@@ -367,7 +402,7 @@ const runTick = async (): Promise<void> => {
 			return;
 		}
 	}
-	if (channels === undefined) return;
+	if (!trackReady) return;
 	if (muted) deps.setNativeVolume(0);
 	if (ending) {
 		if (endingAt !== 0 && Date.now() - endingAt > 1500) {
@@ -462,12 +497,12 @@ export const updateShadowPlayer = (settings: SpeedSettings): void => {
 	}, 40);
 };
 
-export const getShadowPosition = (): number | null => (channels === undefined ? null : currentPosition());
+export const getShadowPosition = (): number | null => (trackReady ? currentPosition() : null);
 
 export const getShadowStatus = (): ShadowStatus => ({
 	state: phase,
 	engine: "signalsmith",
-	bufferSeconds: channels === undefined ? null : Number(trackDuration.toFixed(2)),
+	bufferSeconds: trackReady ? Number(trackDuration.toFixed(2)) : null,
 	playing: sourcePlaying,
 	userPlaying,
 	muted,
@@ -503,6 +538,7 @@ export const startShadowPlayer = (unloads: Set<LunaUnload>, next: ShadowDeps): v
 		resetStretch();
 		stretchNode = undefined;
 		channels = undefined;
+		trackReady = false;
 		buffered = false;
 		setMuted(false);
 		deps = undefined;

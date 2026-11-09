@@ -117,3 +117,9 @@ Single-plugin TidaLuna repo (Playback Kit). Build with `luna/buildPlugins`; the 
 - Speed/pitch changes are applied immediately from the store subscription (`updateShadowPlayer` → 40 ms debounce → `applyRate`), with the 250 ms tick as fallback, so slider changes do not wait for a tick or a decode.
 - If the end-of-track native resume does not produce `completed`, a 1.5 s watchdog (`endingAt`) replays native at `duration - 0.25` and logs `shadow end watchdog fired` instead of leaving a silent stalled state.
 - The popover native card is state-driven from `getShadowStatus()` + the captured load: off / on-no-load / preparing / ready · rate · engine / failed, plus an enable-disable toggle. The quality switch confirms the Redux `settings.quality.streaming` value before remembering/forgetting the restore point; the warning polls its status every 500 ms while open.
+
+## HiRes memory (2.18.3)
+
+- `decodeTrack` keeps `getChannelData` views instead of copying them, logs the estimated decoded MB, and retries `decodeAudioData` once (HiRes files can hit transient memory pressure; corrupt data fails twice).
+- On a new load the previous worklet buffers are dropped before downloading/decoding the next track; after `addBuffers` the JS channel views are released (`channels = undefined`) because the worklet owns its copy. `trackReady` is the readiness flag (not `channels`).
+- A 96 kHz/24-bit 5-minute track is ~236 MB decoded float32; the worklet copy plus raw FLAC is the peak. `MAX_BUFFER_BYTES` remains the hard guard.
